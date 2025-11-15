@@ -1,0 +1,104 @@
+import { NextRequest } from "next/server";
+import { activeTasks } from "@/lib/storage/task-storage";
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const { id } = params;
+
+  console.log(`[SSE] 客户端连接，任务 ID: ${id}`);
+  console.log(`[SSE] activeTasks 大小: ${activeTasks.size}`);
+  console.log(`[SSE] activeTasks 包含的任务 ID:`, Array.from(activeTasks.keys()));
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      const encoder = new TextEncoder();
+      const task = activeTasks.get(id);
+
+      console.log(`[SSE] 任务存在: ${!!task}`, task ? { status: task.status, progress: task.progress } : null);
+
+      if (!task) {
+        console.log(`[SSE] 任务不存在，发送错误`);
+        controller.enqueue(
+          encoder.encode(`data: ${JSON.stringify({ error: "任务不存在" })}\n\n`)
+        );
+        controller.close();
+        return;
+      }
+
+      // Send initial state
+      const initialData = {
+        status: task.status,
+        progress: task.progress,
+        stage: task.stage,
+        logs: task.logs,
+        todos: task.todos || [],
+        files: task.files || {},
+        toolCalls: task.toolCalls || [],
+      };
+      console.log(`[SSE] 发送初始状态:`, initialData);
+      controller.enqueue(
+        encoder.encode(
+          `data: ${JSON.stringify(initialData)}\n\n`
+        )
+      );
+
+      // Poll for updates
+      const interval = setInterval(() => {
+        const currentTask = activeTasks.get(id);
+        if (!currentTask) {
+          console.log(`[SSE] 任务已不存在，关闭连接`);
+          clearInterval(interval);
+          controller.close();
+          return;
+        }
+
+        try {
+          const updateData = {
+            status: currentTask.status,
+            progress: currentTask.progress,
+            stage: currentTask.stage,
+            logs: currentTask.logs,
+            todos: currentTask.todos || [],
+            files: currentTask.files || {},
+            toolCalls: currentTask.toolCalls || [],
+          };
+          console.log(`[SSE] 发送更新 [${updateData.status}] ${updateData.progress}% - ${updateData.stage} - 日志数: ${updateData.logs.length} - Todos: ${updateData.todos.length} - 文件: ${Object.keys(updateData.files).length}`);
+          
+          controller.enqueue(
+            encoder.encode(
+              `data: ${JSON.stringify(updateData)}\n\n`
+            )
+          );
+
+          if (currentTask.status === "completed" || currentTask.status === "failed") {
+            console.log(`[SSE] 任务${currentTask.status === "completed" ? "完成" : "失败"}，关闭连接`);
+            clearInterval(interval);
+            controller.close();
+          }
+        } catch (error) {
+          console.error(`[SSE] 发送更新时出错:`, error);
+          clearInterval(interval);
+          controller.close();
+        }
+      }, 1000); // Poll every second
+
+      // Cleanup on client disconnect
+      request.signal.addEventListener("abort", () => {
+        console.log(`[SSE] 客户端断开连接`);
+        clearInterval(interval);
+        controller.close();
+      });
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      "Connection": "keep-alive",
+    },
+  });
+}
+
