@@ -1,4 +1,44 @@
-一个研究助理Agent的实现
+一个研究助理Agent，用户输入研究问题，agent完成问题拆解，网络查找，审查，最后写成研究报告。
+
+
+# 核心逻辑流程图
+[开始]
+  │
+  ▼
+[用户输入研究问题]
+  │
+  ▼
+[主 Agent 记录问题到 question.txt]
+  │
+  ▼
+[主 Agent 调用 研究 Agent（research-agent）]
+  │
+  ▼
+[研究 Agent 调用工具 internet_search() 搜索资料]
+  │
+  ▼
+[获取搜索结果，返回给主 Agent]
+  │
+  ▼
+[主 Agent 汇总信息，撰写报告到 final_report.md]
+  │
+  ▼
+[（可选）主 Agent 调用 审查 Agent（critique-agent）]
+  │
+  ▼
+[审查 Agent 读取 final_report.md 和 question.txt，进行审核]
+  │
+  ▼
+[返回审查意见给主 Agent]
+  │
+  ▼
+[主 Agent 根据反馈优化报告（可多次迭代）]
+  │
+  ▼
+[输出最终版 final_report.md]
+  │
+  ▼
+[结束]
 
 # createDeepAgent, type SubAgent 使用库 deepagents
 
