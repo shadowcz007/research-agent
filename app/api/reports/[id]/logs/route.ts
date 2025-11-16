@@ -27,7 +27,105 @@ export async function GET(
     let status = task.finalStatus ?? task.status ?? "processing";
     let stage = task.finalStage ?? task.stage ?? "处理中";
     
-    const todos = task.todos || [];
+    // 提取 todos：优先从 task.todos 提取（如果包含嵌套结构则直接使用）
+    let todos = task.todos || [];
+    
+    console.log(`[API] 📋 初始提取的 todos: ${todos.length} 个任务`);
+    
+    // 如果 task.todos 是平铺的，尝试从 messages 中重建嵌套结构
+    if (todos.length > 0) {
+      const hasNestedTodos = todos.some((todo: any) => todo.sub_todos && Array.isArray(todo.sub_todos) && todo.sub_todos.length > 0);
+      console.log(`[API] 🔍 检查嵌套结构: ${hasNestedTodos ? '有' : '无'}嵌套结构`);
+      
+      if (!hasNestedTodos) {
+        console.log(`[API] 🔄 task.todos 是平铺结构，尝试从 messages 重建嵌套结构`);
+        // 尝试从 messages 中查找 write_todos 调用，重建嵌套结构
+        const messages = rawResult.messages || [];
+        const writeTodosCalls: Array<{ todos: any[]; timestamp: number }> = [];
+        
+        messages.forEach((msg: any, index: number) => {
+          // 查找 write_todos 工具调用
+          // 尝试多个可能的路径
+          const toolCalls = msg.kwargs?.tool_calls || 
+                           msg.kwargs?.additional_kwargs?.tool_calls || 
+                           msg.tool_calls || 
+                           [];
+          
+          if (!Array.isArray(toolCalls)) {
+            return; // 跳过无效的 toolCalls
+          }
+          
+          toolCalls.forEach((toolCall: any) => {
+            const toolName = toolCall.function?.name || 
+                           toolCall.name || 
+                           toolCall.function?.name ||
+                           "";
+            
+            if (toolName === "write_todos") {
+              try {
+                const args = toolCall.function?.arguments || 
+                           toolCall.args || 
+                           toolCall.function?.args ||
+                           null;
+                
+                if (!args) {
+                  return; // 跳过没有参数的调用
+                }
+                
+                let parsedArgs: any = null;
+                
+                if (typeof args === 'string') {
+                  try {
+                    parsedArgs = JSON.parse(args);
+                  } catch (parseError) {
+                    console.warn(`[API] 解析 write_todos 参数 JSON 失败 (索引 ${index}):`, parseError);
+                    return;
+                  }
+                } else if (args) {
+                  parsedArgs = args;
+                } else {
+                  return;
+                }
+                
+                if (parsedArgs?.todos && Array.isArray(parsedArgs.todos)) {
+                  const hasNested = parsedArgs.todos.some((todo: any) => 
+                    todo.sub_todos && Array.isArray(todo.sub_todos) && todo.sub_todos.length > 0
+                  );
+                  
+                  if (hasNested) {
+                    writeTodosCalls.push({
+                      todos: parsedArgs.todos,
+                      timestamp: index,
+                    });
+                    console.log(`[API] ✅ 找到包含嵌套结构的 write_todos 调用 (索引 ${index}):`, JSON.stringify(parsedArgs.todos, null, 2));
+                  } else {
+                    // 记录所有 write_todos 调用，即使没有嵌套结构（用于调试）
+                    console.log(`[API] 📝 找到 write_todos 调用 (索引 ${index})，但无嵌套结构，包含 ${parsedArgs.todos.length} 个任务`);
+                  }
+                }
+              } catch (e) {
+                console.warn(`[API] ⚠️ 解析 write_todos 参数失败 (索引 ${index}):`, e);
+              }
+            }
+          });
+        });
+        
+        // 如果找到包含嵌套结构的调用，使用最新的一个
+        if (writeTodosCalls.length > 0) {
+          const latestCall = writeTodosCalls[writeTodosCalls.length - 1];
+          todos = latestCall.todos;
+          console.log(`[API] ✅ 从 messages 重建嵌套结构: ${todos.length} 个顶层任务`);
+        } else {
+          console.log(`[API] 未找到包含嵌套结构的 write_todos 调用，使用平铺结构`);
+        }
+      } else {
+        const nestedCount = todos.reduce((count: number, todo: any) => {
+          return count + (todo.sub_todos?.length || 0);
+        }, 0);
+        console.log(`[API] ✅ task.todos 已包含嵌套结构: ${todos.length} 个顶层任务，${nestedCount} 个子任务`);
+      }
+    }
+    
     const files = task.files || {};
     const toolCalls = task.toolCalls || [];
     

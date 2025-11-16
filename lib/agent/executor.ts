@@ -222,30 +222,61 @@ export class AgentExecutorService {
               try {
                 let todos = null;
                 
-                // 优先从 output.update.todos 提取（对象格式）
+                // 优先从 output.update.todos 提取（对象格式，支持嵌套结构）
                 if (output?.update?.todos && Array.isArray(output.update.todos)) {
                   todos = output.update.todos;
-                  console.log(`[Executor] 从 output.update.todos 提取 todos:`, todos);
+                  console.log(`[Executor] 从 output.update.todos 提取 todos (${todos.length} 项):`, JSON.stringify(todos, null, 2));
                 }
-                // 降级：从 output.update.messages 的字符串中提取
+                // 降级：从 output.update.messages 的字符串中提取（需要支持嵌套 JSON）
                 else if (output?.update?.messages?.[0]?.kwargs?.content) {
                   const content = output.update.messages[0].kwargs.content;
-                  const todosMatch = content.match(/Updated todo list to (\[.*\])/);
+                  // 使用更灵活的匹配，支持多行 JSON（嵌套结构）
+                  const todosMatch = content.match(/Updated todo list to (\[[\s\S]*\])/);
                   if (todosMatch) {
-                    todos = JSON.parse(todosMatch[1]);
-                    console.log(`[Executor] 从 messages 字符串提取 todos:`, todos);
+                    try {
+                      todos = JSON.parse(todosMatch[1]);
+                      console.log(`[Executor] 从 messages 字符串提取 todos (${todos.length} 项):`, JSON.stringify(todos, null, 2));
+                    } catch (parseError) {
+                      console.warn(`[Executor] ⚠️ 解析嵌套 JSON 失败，尝试简单匹配:`, parseError);
+                      // 降级：尝试简单匹配
+                      const simpleMatch = content.match(/Updated todo list to (\[.*\])/);
+                      if (simpleMatch) {
+                        todos = JSON.parse(simpleMatch[1]);
+                        console.log(`[Executor] 从 messages 字符串提取 todos (简单模式, ${todos.length} 项)`);
+                      }
+                    }
                   }
                 }
-                // 最后降级：尝试从字符串格式的 output 提取（兼容旧版本）
+                // 最后降级：尝试从字符串格式的 output 提取（兼容旧版本，支持嵌套）
                 else if (typeof output === 'string') {
-                  const todosMatch = output.match(/Updated todo list to (\[.*\])/);
+                  // 使用更灵活的匹配，支持多行 JSON（嵌套结构）
+                  const todosMatch = output.match(/Updated todo list to (\[[\s\S]*\])/);
                   if (todosMatch) {
-                    todos = JSON.parse(todosMatch[1]);
-                    console.log(`[Executor] 从字符串 output 提取 todos:`, todos);
+                    try {
+                      todos = JSON.parse(todosMatch[1]);
+                      console.log(`[Executor] 从字符串 output 提取 todos (${todos.length} 项):`, JSON.stringify(todos, null, 2));
+                    } catch (parseError) {
+                      console.warn(`[Executor] ⚠️ 解析嵌套 JSON 失败，尝试简单匹配:`, parseError);
+                      // 降级：尝试简单匹配
+                      const simpleMatch = output.match(/Updated todo list to (\[.*\])/);
+                      if (simpleMatch) {
+                        todos = JSON.parse(simpleMatch[1]);
+                        console.log(`[Executor] 从字符串 output 提取 todos (简单模式, ${todos.length} 项)`);
+                      }
+                    }
                   }
                 }
                 
                 if (todos && Array.isArray(todos)) {
+                  // 验证并记录嵌套结构
+                  const hasNestedTodos = todos.some((todo: any) => todo.sub_todos && Array.isArray(todo.sub_todos) && todo.sub_todos.length > 0);
+                  if (hasNestedTodos) {
+                    const nestedCount = todos.reduce((count: number, todo: any) => {
+                      return count + (todo.sub_todos?.length || 0);
+                    }, 0);
+                    console.log(`[Executor] 📊 检测到嵌套结构: ${todos.length} 个顶层任务，${nestedCount} 个子任务`);
+                  }
+                  
                   // 检查是否在子任务上下文中
                   const context = this.taskContexts.get(reportId);
                   
@@ -257,9 +288,12 @@ export class AgentExecutorService {
                       if (!parentTodo.sub_todos) {
                         parentTodo.sub_todos = [];
                       }
-                      // 更新子任务列表
+                      // 更新子任务列表（保留嵌套结构）
                       parentTodo.sub_todos = todos as Todo[];
-                      console.log(`[Executor] ✅ 子任务列表已更新到父任务 [${context.parentTodoIndex}] (${todos.length} 项):`, todos);
+                      const subNestedCount = todos.reduce((count: number, todo: any) => {
+                        return count + (todo.sub_todos?.length || 0);
+                      }, 0);
+                      console.log(`[Executor] ✅ 子任务列表已更新到父任务 [${context.parentTodoIndex}] (${todos.length} 项${subNestedCount > 0 ? `, ${subNestedCount} 个嵌套子任务` : ''}):`, JSON.stringify(todos, null, 2));
                       
                       // 触发进度更新
                       if (onProgress) {
@@ -278,7 +312,7 @@ export class AgentExecutorService {
                       task.todos = todos as Todo[];
                     }
                   } else {
-                    // 顶层上下文：正常更新顶层任务列表
+                    // 顶层上下文：正常更新顶层任务列表（保留嵌套结构）
                     // 如果之前有子任务上下文，现在更新顶层列表，说明子任务已完成，清理上下文
                     if (context && context.isSubTask) {
                       console.log(`[Executor] 🧹 清理子任务上下文（顶层任务列表更新）`);
@@ -286,7 +320,7 @@ export class AgentExecutorService {
                     }
                     
                     task.todos = todos as Todo[];
-                    console.log(`[Executor] ✅ 顶层 Todos 已更新 (${todos.length} 项):`, todos);
+                    console.log(`[Executor] ✅ 顶层 Todos 已更新 (${todos.length} 项${hasNestedTodos ? `, 包含嵌套结构` : ''}):`, JSON.stringify(todos, null, 2));
                     
                     if (onProgress) {
                       const inProgressTodo = todos.find((t: any) => t.status === "in_progress");

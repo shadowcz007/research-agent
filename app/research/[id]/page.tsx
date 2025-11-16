@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { User, Settings, FileText } from "lucide-react";
+import { User, Settings, FileText, ArrowLeft } from "lucide-react";
 import { TodosPanel } from "@/components/research/todos-panel";
 import { FilesPanel } from "@/components/research/files-panel";
 import ReactMarkdown from "react-markdown";
@@ -57,6 +57,11 @@ export default function ResearchProgressPage() {
           return;
         }
 
+        console.log("[前端] 历史模式数据接收:", {
+          todosCount: data.todos?.length || 0,
+          hasNestedTodos: data.todos?.some((t: Todo) => t.sub_todos && t.sub_todos.length > 0) || false,
+          todos: data.todos,
+        });
         setProgressData(data);
         setLoading(false);
       } catch (error) {
@@ -170,11 +175,22 @@ export default function ResearchProgressPage() {
     <div className="min-h-screen bg-slate-900 text-white">
       {/* Header */}
       <div className="border-b border-slate-700 px-6 py-4 flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold">RESEARCH AGENT</h1>
-          <p className="text-slate-400 text-sm">
-            {isHistoryMode ? "历史记录" : "REAL-TIME PROGRESS"}
-          </p>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => router.push("/")}
+            className="flex items-center gap-2 text-slate-400 hover:text-slate-200 transition-colors"
+            title="回到首页"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            <span className="text-sm">首页</span>
+          </button>
+          <div className="h-6 w-px bg-slate-700" />
+          <div>
+            <h1 className="text-2xl font-bold">RESEARCH AGENT</h1>
+            <p className="text-slate-400 text-sm">
+              {isHistoryMode ? "历史记录" : "REAL-TIME PROGRESS"}
+            </p>
+          </div>
         </div>
         <div className="flex gap-4 items-center">
           {isHistoryMode && (
@@ -187,8 +203,7 @@ export default function ResearchProgressPage() {
               查看报告
             </Button>
           )}
-          <User className="w-6 h-6 cursor-pointer hover:text-blue-400" />
-          <Settings className="w-6 h-6 cursor-pointer hover:text-blue-400" />
+    
         </div>
       </div>
 

@@ -29,6 +29,17 @@ function TodoItem({ todo, index, level = 0, expandedItems, onToggleExpand }: Tod
   const isExpanded = expandedItems.has(itemKey);
   const isTopLevel = level === 0;
 
+  // 递归计算所有层级的子任务数量
+  const getTotalSubTodosCount = (todos: Todo[]): number => {
+    let count = todos.length;
+    todos.forEach((t) => {
+      if (t.sub_todos && t.sub_todos.length > 0) {
+        count += getTotalSubTodosCount(t.sub_todos);
+      }
+    });
+    return count;
+  };
+
   // 计算子任务完成进度
   const getSubTodoProgress = () => {
     if (!hasSubTodos) return null;
@@ -38,6 +49,7 @@ function TodoItem({ todo, index, level = 0, expandedItems, onToggleExpand }: Tod
   };
 
   const subTodoProgress = getSubTodoProgress();
+  const totalSubTodosCount = hasSubTodos ? getTotalSubTodosCount(todo.sub_todos!) : 0;
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -76,20 +88,27 @@ function TodoItem({ todo, index, level = 0, expandedItems, onToggleExpand }: Tod
         } ${!isTopLevel ? "ml-4" : ""}`}
       >
         {/* 展开/折叠按钮 */}
-        {hasSubTodos && (
+        {hasSubTodos ? (
           <button
             onClick={() => onToggleExpand(itemKey)}
-            className="mt-0.5 text-slate-400 hover:text-slate-200 transition-colors"
+            className="mt-0.5 text-slate-400 hover:text-blue-400 transition-colors flex items-center gap-1 group"
             aria-label={isExpanded ? "收起子任务" : "展开子任务"}
+            title={`${isExpanded ? "收起" : "展开"} ${totalSubTodosCount} 个子任务`}
           >
             {isExpanded ? (
-              <ChevronDown className="w-4 h-4" />
+              <ChevronDown className="w-4 h-4 group-hover:scale-110 transition-transform" />
             ) : (
-              <ChevronRight className="w-4 h-4" />
+              <ChevronRight className="w-4 h-4 group-hover:scale-110 transition-transform" />
+            )}
+            {!isExpanded && (
+              <span className="text-xs text-slate-500 group-hover:text-slate-300">
+                {totalSubTodosCount}
+              </span>
             )}
           </button>
+        ) : (
+          <div className="w-4" /> // 占位符，保持对齐
         )}
-        {!hasSubTodos && <div className="w-4" />} {/* 占位符，保持对齐 */}
 
         {/* 状态图标 */}
         <div className="mt-0.5">{getStatusIcon(todo.status)}</div>
@@ -122,10 +141,10 @@ function TodoItem({ todo, index, level = 0, expandedItems, onToggleExpand }: Tod
 
       {/* 子任务列表 */}
       {hasSubTodos && isExpanded && (
-        <div className="mt-2 space-y-2">
+        <div className={`mt-2 space-y-2 ${level > 0 ? "ml-2" : ""}`}>
           {todo.sub_todos!.map((subTodo, subIndex) => (
             <TodoItem
-              key={subTodo.id || `sub-${index}-${subIndex}`}
+              key={subTodo.id || `sub-${index}-${subIndex}-${level}`}
               todo={subTodo}
               index={subIndex}
               level={level + 1}
@@ -143,18 +162,38 @@ export function TodosPanel({ todos }: TodosPanelProps) {
   // 管理展开/折叠状态
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
 
-  // 默认展开有 in_progress 子任务的项目
-  useEffect(() => {
-    const defaultExpanded = new Set<string>();
-    todos.forEach((todo, index) => {
-      const itemKey = todo.id || `todo-${index}-0`;
-      // 如果任务本身是 in_progress 或有 in_progress 的子任务，默认展开
+  // 递归查找所有包含 in_progress 子任务的项目
+  const findInProgressTodos = (taskList: Todo[], parentKey: string = "", level: number = 0): Set<string> => {
+    const expanded = new Set<string>();
+    taskList.forEach((todo, index) => {
+      const itemKey = todo.id || `${parentKey}-${index}-${level}`;
+      
+      // 如果任务本身是 in_progress，展开它和所有父级
       if (todo.status === "in_progress") {
-        defaultExpanded.add(itemKey);
-      } else if (todo.sub_todos?.some(st => st.status === "in_progress")) {
-        defaultExpanded.add(itemKey);
+        expanded.add(itemKey);
+        // 展开所有父级
+        if (parentKey) {
+          expanded.add(parentKey);
+        }
+      }
+      
+      // 递归检查子任务
+      if (todo.sub_todos && todo.sub_todos.length > 0) {
+        const subExpanded = findInProgressTodos(todo.sub_todos, itemKey, level + 1);
+        if (subExpanded.size > 0) {
+          // 如果有子任务需要展开，也展开当前项
+          expanded.add(itemKey);
+          // 合并子任务的展开项
+          subExpanded.forEach(key => expanded.add(key));
+        }
       }
     });
+    return expanded;
+  };
+
+  // 默认展开有 in_progress 子任务的项目（递归处理所有层级）
+  useEffect(() => {
+    const defaultExpanded = findInProgressTodos(todos);
     setExpandedItems(defaultExpanded);
   }, [todos]);
 
@@ -170,12 +209,12 @@ export function TodosPanel({ todos }: TodosPanelProps) {
     });
   };
 
-  // 计算总任务数（包括子任务）
-  const getTotalTaskCount = () => {
-    let count = todos.length;
-    todos.forEach((todo) => {
-      if (todo.sub_todos) {
-        count += todo.sub_todos.length;
+  // 递归计算总任务数（包括所有层级的子任务）
+  const getTotalTaskCount = (taskList: Todo[] = todos): number => {
+    let count = taskList.length;
+    taskList.forEach((todo) => {
+      if (todo.sub_todos && todo.sub_todos.length > 0) {
+        count += getTotalTaskCount(todo.sub_todos);
       }
     });
     return count;

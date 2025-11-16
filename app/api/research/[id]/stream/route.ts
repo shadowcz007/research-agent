@@ -37,6 +37,18 @@ export async function GET(
         files: task.files || {},
         toolCalls: task.toolCalls || [],
       };
+      
+      // 检查初始状态是否包含嵌套结构
+      if (initialData.todos.length > 0) {
+        const hasNestedTodos = initialData.todos.some((todo: any) => todo.sub_todos && Array.isArray(todo.sub_todos) && todo.sub_todos.length > 0);
+        if (hasNestedTodos) {
+          const nestedCount = initialData.todos.reduce((count: number, todo: any) => {
+            return count + (todo.sub_todos?.length || 0);
+          }, 0);
+          console.log(`[SSE] 📊 初始状态包含嵌套结构: ${initialData.todos.length} 个顶层任务，${nestedCount} 个子任务`);
+        }
+      }
+      
       console.log(`[SSE] 发送初始状态:`, initialData);
       controller.enqueue(
         encoder.encode(
@@ -66,8 +78,15 @@ export async function GET(
           };
           console.log(`[SSE] 发送更新 [${updateData.status}] ${updateData.progress}% - ${updateData.stage} - 日志数: ${updateData.logs.length} - Todos: ${updateData.todos.length} - 文件: ${Object.keys(updateData.files).length}`);
           
-          // 当 todos 或 files 有变化时，输出详细信息
+          // 当 todos 或 files 有变化时，输出详细信息（包括嵌套结构）
           if (updateData.todos.length > 0) {
+            const hasNestedTodos = updateData.todos.some((todo: any) => todo.sub_todos && Array.isArray(todo.sub_todos) && todo.sub_todos.length > 0);
+            if (hasNestedTodos) {
+              const nestedCount = updateData.todos.reduce((count: number, todo: any) => {
+                return count + (todo.sub_todos?.length || 0);
+              }, 0);
+              console.log(`[SSE] 📊 Todos 包含嵌套结构: ${updateData.todos.length} 个顶层任务，${nestedCount} 个子任务`);
+            }
             console.log(`[SSE] Todos 详情:`, JSON.stringify(updateData.todos, null, 2));
           }
           if (Object.keys(updateData.files).length > 0) {

@@ -5,11 +5,9 @@ import { useParams, useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Cloud, Edit, Send, Download, User, FileText } from "lucide-react";
+import { ArrowLeft, Download, FileText } from "lucide-react";
 
 interface ReportData {
   id: string;
@@ -119,34 +117,22 @@ export default function ReportPage() {
           <div className="flex items-center gap-4">
             <button
               onClick={() => router.push("/")}
-              className="flex items-center gap-2 text-slate-600 hover:text-slate-900"
+              className="flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-colors"
+              title="回到首页"
             >
-              <ArrowLeft className="w-4 h-4" />
-              <span>Dashboard</span>
+              <ArrowLeft className="w-5 h-5" />
+              <span className="text-sm">首页</span>
             </button>
-            <span className="text-slate-400">/</span>
-            <span className="text-slate-600">New Research</span>
-          </div>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon">
-              <Cloud className="w-5 h-5" />
-            </Button>
-            <Button variant="outline" className="gap-2">
-              <Edit className="w-4 h-4" />
-              Edit
-            </Button>
-            <Button className="bg-blue-600 hover:bg-blue-700 gap-2">
-              <Send className="w-4 h-4" />
-              Send for Review
-            </Button>
+            <div className="h-6 w-px bg-slate-300" />
+            <span className="text-slate-600">研究报告</span>
           </div>
         </div>
       </div>
 
       <div className="container mx-auto px-6 py-8">
-        <div className="grid lg:grid-cols-3 gap-6">
+        <div className="max-w-4xl mx-auto">
           {/* Main Content */}
-          <div className="lg:col-span-2">
+          <div>
             <Card className="bg-white">
               <CardHeader>
                 <CardTitle className="text-3xl font-bold text-slate-900">
@@ -182,73 +168,6 @@ export default function ReportPage() {
                     {reportData.content}
                   </ReactMarkdown>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* History & Feedback */}
-            <Card className="bg-white">
-              <CardHeader>
-                <CardTitle className="text-lg">History & Feedback</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Tabs defaultValue="versions" className="w-full">
-                  <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="versions">Versions</TabsTrigger>
-                    <TabsTrigger value="feedback">Feedback</TabsTrigger>
-                  </TabsList>
-                  <TabsContent value="versions" className="mt-4">
-                    <ScrollArea className="h-[300px]">
-                      <div className="space-y-2">
-                        {reportData.versions.map((version, index) => (
-                          <div
-                            key={index}
-                            className="p-2 hover:bg-slate-50 rounded cursor-pointer"
-                          >
-                            <div className="font-medium">{version.version}</div>
-                            <div className="text-sm text-slate-500">
-                              {new Date(version.date).toLocaleDateString("zh-CN")}
-                            </div>
-                          </div>
-                        ))}
-                        {reportData.versions.length === 0 && (
-                          <p className="text-slate-500 text-sm">暂无版本历史</p>
-                        )}
-                      </div>
-                    </ScrollArea>
-                  </TabsContent>
-                  <TabsContent value="feedback" className="mt-4">
-                    <ScrollArea className="h-[300px]">
-                      <div className="space-y-4">
-                        <div className="flex gap-3">
-                          <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm">
-                            <User className="w-4 h-4" />
-                          </div>
-                          <div className="flex-1">
-                            <p className="text-sm text-slate-700">
-                              Suggest expanding on error correction techniques
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex gap-3">
-                          <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center text-white text-sm">
-                            DC
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="font-medium text-sm">Dr. Ben Carter</span>
-                            </div>
-                            <p className="text-sm text-slate-700">
-                              Check recent breakthroughs in quantum computing
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </ScrollArea>
-                  </TabsContent>
-                </Tabs>
               </CardContent>
             </Card>
           </div>
