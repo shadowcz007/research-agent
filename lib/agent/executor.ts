@@ -352,8 +352,9 @@ export class AgentExecutorService {
             const fileTools = ['write_file', 'read_file', 'edit_file', 'delete_file', 'list_files'];
             if (fileTools.includes(toolName) && task) {
               try {
-                // 解析 args
-                const args = event.data?.input;
+                // 从工具调用历史中获取参数，而不是从 event.data.input
+                const lastToolCall = task.toolCalls?.[task.toolCalls.length - 1];
+                const args = lastToolCall?.args;
                 let filePath: string | null = null;
                 let fileContent: string | null = null;
                 let operation = toolName; // 操作类型
@@ -398,7 +399,7 @@ export class AgentExecutorService {
                         path: normalizedPath,
                         content: fileContent || '',
                         size: fileContent ? fileContent.length : 0,
-                        timestamp: new Date().toISOString(),
+                        modified_at: new Date().toISOString(),
                         operation: toolName,
                       };
                       console.log(`[Executor] ✅ 文件已${toolName === 'write_file' ? '写入' : '编辑'}: ${normalizedPath} (${fileContent?.length || 0} 字符)`);
@@ -408,6 +409,7 @@ export class AgentExecutorService {
                       // 读取文件（如果已存在，更新访问时间；否则添加）
                       if (task.files[normalizedPath]) {
                         task.files[normalizedPath].lastAccessed = new Date().toISOString();
+                        task.files[normalizedPath].modified_at = new Date().toISOString();
                       } else {
                         // 从 output 提取内容（read_file 的返回内容）
                         const readContent = outputContent || '';
@@ -415,7 +417,7 @@ export class AgentExecutorService {
                           path: normalizedPath,
                           content: readContent,
                           size: readContent.length,
-                          timestamp: new Date().toISOString(),
+                          modified_at: new Date().toISOString(),
                           operation: 'read_file',
                           lastAccessed: new Date().toISOString(),
                         };
@@ -440,7 +442,9 @@ export class AgentExecutorService {
                   console.warn(`[Executor] ⚠️ ${toolName} 未成功或缺少文件路径`, { 
                     filePath, 
                     outputStatus, 
-                    toolName 
+                    toolName,
+                    hasLastToolCall: !!lastToolCall,
+                    lastToolCallArgs: lastToolCall?.args
                   });
                 }
               } catch (e) {
