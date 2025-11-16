@@ -25,9 +25,9 @@ export default function HomePage() {
   const router = useRouter();
 
   const exampleQuestions = [
-    "What are the effects of climate change on coral reefs?",
-    "History of artificial intelligence in healthcare",
-    "Latest developments in renewable energy technologies?",
+    "气候变化对珊瑚礁有什么影响？",
+    "人工智能在医疗保健领域的历史",
+    "可再生能源技术的最新发展？",
   ];
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -148,7 +148,7 @@ export default function HomePage() {
             RESEARCH AGENT
           </CardTitle>
           <CardDescription className="text-lg text-slate-600">
-            Your AI-powered research assistant
+            您的AI驱动研究助手
           </CardDescription>
         </CardHeader>
 
@@ -159,7 +159,7 @@ export default function HomePage() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
               <Input
                 type="text"
-                placeholder="Enter your research question..."
+                placeholder="输入您的研究问题..."
                 value={question}
                 onChange={(e) => setQuestion(e.target.value)}
                 className="pl-10 pr-20 h-12 text-lg"
@@ -174,7 +174,7 @@ export default function HomePage() {
                 className="bg-blue-600 hover:bg-blue-700 text-white px-8"
                 disabled={isLoading}
               >
-                {isLoading ? "提交中..." : "SUBMIT"}
+                {isLoading ? "提交中..." : "提交"}
               </Button>
               <Mic className="text-slate-400 w-6 h-6 cursor-pointer hover:text-blue-600" />
             </div>
@@ -186,13 +186,13 @@ export default function HomePage() {
             <Card className="bg-slate-50">
               <CardHeader>
                 <CardTitle className="text-xl text-blue-900">
-                  Tips for Effective Queries:
+                  有效查询提示：
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2 text-slate-700">
-                <p>• Be specific: Narrow down on topic.</p>
-                <p>• Use keywords: Highlight key terms</p>
-                <p>• Contextualize: Add background information</p>
+                <p>• 具体明确：缩小主题范围</p>
+                <p>• 使用关键词：突出关键术语</p>
+                <p>• 提供背景：添加背景信息</p>
               </CardContent>
             </Card>
 
@@ -200,7 +200,7 @@ export default function HomePage() {
             <Card className="bg-slate-50">
               <CardHeader>
                 <CardTitle className="text-xl text-blue-900">
-                  Example Questions
+                  示例问题
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
