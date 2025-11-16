@@ -1,6 +1,7 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { CheckCircle2, Circle, Loader2, ChevronDown, ChevronRight } from "lucide-react";
 import { useState, useEffect, useMemo, useCallback } from "react";
 
@@ -241,29 +242,31 @@ export function TodosPanel({ todos, researchId }: TodosPanelProps) {
   };
 
   return (
-    <Card className="bg-slate-800 border-slate-700 h-full">
-      <CardHeader>
+    <Card className="bg-slate-800 border-slate-700 h-full flex flex-col overflow-hidden">
+      <CardHeader className="flex-shrink-0">
         <CardTitle className="text-sm text-slate-400 uppercase">
           任务列表 ({todos.length} 顶层, {getTotalTaskCount()} 总计)
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        {todos.length === 0 ? (
-          <p className="text-slate-500 text-sm">暂无任务...</p>
-        ) : (
-          <div className="space-y-3">
-            {todos.map((todo, index) => (
-              <TodoItem
-                key={todo.id || index}
-                todo={todo}
-                index={index}
-                level={0}
-                expandedItems={expandedItems}
-                onToggleExpand={toggleExpand}
-              />
-            ))}
-          </div>
-        )}
+      <CardContent className="flex-1 min-h-0 p-6 pt-0">
+        <ScrollArea className="h-full">
+          {todos.length === 0 ? (
+            <p className="text-slate-500 text-sm">暂无任务...</p>
+          ) : (
+            <div className="space-y-3 pr-4">
+              {todos.map((todo, index) => (
+                <TodoItem
+                  key={todo.id || index}
+                  todo={todo}
+                  index={index}
+                  level={0}
+                  expandedItems={expandedItems}
+                  onToggleExpand={toggleExpand}
+                />
+              ))}
+            </div>
+          )}
+        </ScrollArea>
       </CardContent>
     </Card>
   );

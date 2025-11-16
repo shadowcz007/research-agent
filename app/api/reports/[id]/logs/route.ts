@@ -231,6 +231,14 @@ export async function GET(
       });
     }
 
+    // 获取question
+    let question: string | null = null;
+    try {
+      question = await fileStorage.getQuestion(id);
+    } catch (error) {
+      console.warn(`[API] 获取question失败:`, error);
+    }
+
     return NextResponse.json({
       status,
       progress,
@@ -239,6 +247,7 @@ export async function GET(
       todos,
       files,
       toolCalls,
+      question: question || undefined,
     });
   } catch (error) {
     console.error("[API] 获取执行日志失败:", error);

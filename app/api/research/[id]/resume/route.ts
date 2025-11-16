@@ -11,20 +11,31 @@ export async function POST(
 ) {
   try {
     const { id } = params;
+    const body = await request.json().catch(() => ({}));
+    const restart = body.restart === true; // 检查是否要重新开始
 
     // 检查任务是否已在 activeTasks 中
     if (activeTasks.has(id)) {
       const task = activeTasks.get(id);
       if (task && (task.status === "processing" || task.status === "pending")) {
-        return NextResponse.json(
-          { message: "任务已在执行中", status: task.status },
-          { status: 200 }
-        );
+        // 如果是重新开始，允许继续
+        if (!restart) {
+          return NextResponse.json(
+            { message: "任务已在执行中", status: task.status },
+            { status: 200 }
+          );
+        }
       }
     }
 
-    // 尝试从 agent_raw_result.json 恢复状态
-    const savedState = await fileStorage.getAgentRawResult(id);
+    // 如果重新开始，清除现有任务状态
+    if (restart) {
+      activeTasks.delete(id);
+      console.log(`[Resume] 重新开始任务 ${id}，清除现有状态`);
+    }
+
+    // 尝试从 agent_raw_result.json 恢复状态（仅在非重新开始模式下）
+    const savedState = restart ? null : await fileStorage.getAgentRawResult(id);
     let initialMessages: BaseMessage[] | undefined;
     let restoredTask: Partial<Task> | null = null;
 
@@ -93,18 +104,33 @@ export async function POST(
     }
 
     // 创建或恢复任务
-    const task: Task = restoredTask || {
+    const task: Task = restoredTask ? {
+      status: restoredTask.status || "pending",
+      progress: restoredTask.progress ?? 0,
+      stage: restoredTask.stage || "初始化",
+      logs: restoredTask.logs || [],
+      todos: restoredTask.todos,
+      files: restoredTask.files,
+      toolCalls: restoredTask.toolCalls,
+      cancelled: false, // 重置取消标志
+    } : {
       status: "pending",
       progress: 0,
       stage: "初始化",
       logs: [],
+      cancelled: false, // 重置取消标志
     };
 
     // 如果恢复了状态，添加恢复日志
-    if (restoredTask) {
+    if (restoredTask && !restart) {
       task.logs.push({
         time: new Date().toLocaleTimeString("zh-CN"),
         message: "从保存的状态恢复执行",
+      });
+    } else if (restart) {
+      task.logs.push({
+        time: new Date().toLocaleTimeString("zh-CN"),
+        message: "重新开始执行任务",
       });
     }
 

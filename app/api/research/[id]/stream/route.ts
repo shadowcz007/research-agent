@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { activeTasks } from "@/lib/storage/task-storage";
+import { fileStorage } from "@/lib/storage/file-storage";
 
 export async function GET(
   request: NextRequest,
@@ -27,6 +28,14 @@ export async function GET(
         return;
       }
 
+      // 获取question
+      let question: string | null = null;
+      try {
+        question = await fileStorage.getQuestion(id);
+      } catch (error) {
+        console.warn(`[SSE] 获取question失败:`, error);
+      }
+
       // Send initial state
       const initialData = {
         status: task.status,
@@ -36,6 +45,7 @@ export async function GET(
         todos: task.todos || [],
         files: task.files || {},
         toolCalls: task.toolCalls || [],
+        question: question || undefined,
       };
       
       // 检查初始状态是否包含嵌套结构
@@ -75,6 +85,7 @@ export async function GET(
             todos: currentTask.todos || [],
             files: currentTask.files || {},
             toolCalls: currentTask.toolCalls || [],
+            question: question || undefined, // question在开始时已获取，不会改变
           };
           console.log(`[SSE] 发送更新 [${updateData.status}] ${updateData.progress}% - ${updateData.stage} - 日志数: ${updateData.logs.length} - Todos: ${updateData.todos.length} - 文件: ${Object.keys(updateData.files).length}`);
           

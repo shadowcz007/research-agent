@@ -1,5 +1,5 @@
 import { HumanMessage, BaseMessage } from "@langchain/core/messages";
-import { load } from "@langchain/core/load";
+
 import { fileStorage } from "../storage/file-storage";
 import { createAgentForReport } from "./research-agent";
 import {
@@ -157,6 +157,20 @@ export class AgentExecutorService {
         );
 
         for await (const event of stream) {
+          // 检查任务是否被取消
+          const currentTask = activeTasks.get(reportId);
+          if (currentTask?.cancelled) {
+            console.log(`[Executor] 任务 ${reportId} 已被取消，停止执行`);
+            if (onProgress) {
+              onProgress({
+                stage: "已停止",
+                progress: currentTask.progress,
+                log: "任务已被用户停止",
+              });
+            }
+            break;
+          }
+
           const eventType = event.event;
           
           // Handle different event types

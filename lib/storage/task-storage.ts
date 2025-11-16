@@ -30,6 +30,8 @@ export interface Task {
   finalProgress?: number;
   finalStatus?: "completed" | "failed";
   finalStage?: string;
+  // 新增：取消标志
+  cancelled?: boolean;
 }
 
 // Todo 统计接口

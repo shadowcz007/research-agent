@@ -7,6 +7,7 @@ import { HumanMessage } from "@langchain/core/messages";
 import { createDeepAgent, type SubAgent, FilesystemBackend } from "deepagents";
 import { progressCallbacks, getCurrentTaskId } from "../storage/task-storage";
 import path from "path";
+import fs from "fs/promises";
 
 type Topic = "general" | "news" | "finance";
 
@@ -74,6 +75,11 @@ export const internetSearch = tool(
         30,
         `搜索完成，找到 ${resultCount} 条结果`
       );
+      if (process.env.NODE_ENV === 'development') {
+        // temp 文件夹保存TavilySearch结果
+        fs.writeFile(`temp/${query}_tavily_search_result.json`, JSON.stringify(tavilyResponse, null, 2));
+
+      }
 
       return tavilyResponse;
     } catch (error) {
@@ -258,15 +264,15 @@ const chatModel = new ChatOpenAI({
 // 为每个报告创建独立文件系统的 agent
 export function createAgentForReport(reportId: string) {
   const reportDir = path.join(process.cwd(), "reports", reportId);
-  
+
   return createDeepAgent({
     model: chatModel,
     tools: [internetSearch],
     systemPrompt: researchInstructions,
     subagents: [critiqueSubAgent, researchSubAgent],
-    backend: new FilesystemBackend({ 
-      rootDir: reportDir, 
-      virtualMode: true 
+    backend: new FilesystemBackend({
+      rootDir: reportDir,
+      virtualMode: true
     }),
   });
 }

@@ -128,6 +128,12 @@ export class FileStorage {
           if (!stats.isDirectory()) return null;
 
           const question = await this.getQuestion(dir);
+          
+          // 如果没有question，过滤掉这个报告
+          if (!question || question.trim() === "") {
+            return null;
+          }
+          
           const reportPath = path.join(reportDir, "final_report.md");
           let status: ReportMetadata["status"] = "pending";
           let updatedAt = stats.mtime.toISOString();
@@ -143,7 +149,7 @@ export class FileStorage {
 
           return {
             id: dir,
-            question: question || "未知问题",
+            question: question,
             createdAt: stats.birthtime.toISOString(),
             updatedAt,
             status,
