@@ -28,10 +28,18 @@ export async function POST(
       }
     }
 
-    // 如果重新开始，清除现有任务状态
+    // 如果重新开始，清除现有任务状态并删除 final_report.md
     if (restart) {
       activeTasks.delete(id);
       console.log(`[Resume] 重新开始任务 ${id}，清除现有状态`);
+      // 删除 final_report.md
+      try {
+        await fileStorage.deleteReport(id);
+        console.log(`[Resume] ✅ 已删除 final_report.md`);
+      } catch (error) {
+        console.warn(`[Resume] ⚠️ 删除 final_report.md 失败:`, error instanceof Error ? error.message : error);
+        // 不阻止重新开始，继续执行
+      }
     }
 
     // 尝试从 agent_raw_result.json 恢复状态（仅在非重新开始模式下）

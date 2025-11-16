@@ -199,6 +199,22 @@ export class FileStorage {
       return null;
     }
   }
+
+  async deleteReport(id: string): Promise<void> {
+    try {
+      const reportPath = path.join(this.reportsDir, id, "final_report.md");
+      await fs.unlink(reportPath);
+      console.log(`[FileStorage] ✅ 已删除最终报告: ${reportPath}`);
+    } catch (error) {
+      // 如果文件不存在，不抛出错误
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        console.error(`[FileStorage] ❌ 删除最终报告失败:`, error instanceof Error ? error.message : error);
+        throw error;
+      } else {
+        console.log(`[FileStorage] 最终报告不存在，无需删除: ${reportPath}`);
+      }
+    }
+  }
 }
 
 export const fileStorage = new FileStorage();

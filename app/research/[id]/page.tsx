@@ -250,7 +250,7 @@ export default function ResearchProgressPage() {
     }
   }, [progressData]);
 
-  // 处理重新开始
+  // 处理重新开始（实时模式）
   const handleRestart = async () => {
     if (isRestarting) return;
 
@@ -273,6 +273,38 @@ export default function ResearchProgressPage() {
 
       // 重新加载页面以刷新状态
       window.location.reload();
+    } catch (error) {
+      console.error("重新开始失败:", error);
+      alert(error instanceof Error ? error.message : "重新开始失败，请重试");
+    } finally {
+      setIsRestarting(false);
+    }
+  };
+
+  // 处理重新开始（历史模式）
+  const handleRestartFromHistory = async () => {
+    if (isRestarting) return;
+
+    if (!confirm("确定要重新开始吗？这将删除已生成的最终报告，然后从头开始执行任务。")) {
+      return;
+    }
+
+    setIsRestarting(true);
+    try {
+      const res = await fetch(`/api/research/${id}/resume`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ restart: true }), // 传递restart标志，让后端知道要重新开始并删除final_report.md
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "重新开始失败");
+      }
+
+      // 使用 replace 跳转到实时模式（去掉 mode=history 参数），替换当前历史记录
+      // 这样用户点击返回按钮时不会回到历史模式页面
+      router.replace(`/research/${id}`);
     } catch (error) {
       console.error("重新开始失败:", error);
       alert(error instanceof Error ? error.message : "重新开始失败，请重试");
@@ -356,14 +388,25 @@ export default function ResearchProgressPage() {
             </>
           )}
           {isHistoryMode && (
-            <Button
-              variant="outline"
-              onClick={() => router.push(`/research/${id}/report`)}
-              className="gap-2 bg-slate-800/50 text-slate-200 border-slate-600 hover:bg-slate-700 hover:text-white hover:border-slate-500"
-            >
-              <FileText className="w-4 h-4" />
-              查看报告
-            </Button>
+            <>
+              <Button
+                variant="outline"
+                onClick={handleRestartFromHistory}
+                disabled={isRestarting}
+                className="gap-2 bg-slate-800/50 text-slate-200 border-slate-600 hover:bg-slate-700 hover:text-white hover:border-slate-500"
+              >
+                <RotateCcw className="w-4 h-4" />
+                {isRestarting ? "重新开始中..." : "重新开始"}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => router.push(`/research/${id}/report`)}
+                className="gap-2 bg-slate-800/50 text-slate-200 border-slate-600 hover:bg-slate-700 hover:text-white hover:border-slate-500"
+              >
+                <FileText className="w-4 h-4" />
+                查看报告
+              </Button>
+            </>
           )}
         </div>
       </div>
