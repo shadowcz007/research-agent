@@ -66,6 +66,14 @@ export async function GET(
           };
           console.log(`[SSE] 发送更新 [${updateData.status}] ${updateData.progress}% - ${updateData.stage} - 日志数: ${updateData.logs.length} - Todos: ${updateData.todos.length} - 文件: ${Object.keys(updateData.files).length}`);
           
+          // 当 todos 或 files 有变化时，输出详细信息
+          if (updateData.todos.length > 0) {
+            console.log(`[SSE] Todos 详情:`, JSON.stringify(updateData.todos, null, 2));
+          }
+          if (Object.keys(updateData.files).length > 0) {
+            console.log(`[SSE] Files 详情:`, JSON.stringify(Object.keys(updateData.files), null, 2));
+          }
+          
           controller.enqueue(
             encoder.encode(
               `data: ${JSON.stringify(updateData)}\n\n`

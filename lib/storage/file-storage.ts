@@ -180,6 +180,19 @@ export class FileStorage {
       // 不抛出错误，因为这只是用于调试的辅助功能
     }
   }
+
+  async getAgentRawResult(id: string): Promise<any | null> {
+    try {
+      const resultPath = path.join(this.reportsDir, id, "agent_raw_result.json");
+      const content = await fs.readFile(resultPath, "utf-8");
+      const result = JSON.parse(content);
+      console.log(`[FileStorage] ✅ 成功读取 Agent 原始结果 (${resultPath})`);
+      return result;
+    } catch (error) {
+      console.log(`[FileStorage] ❌ 读取 Agent 原始结果失败:`, error instanceof Error ? error.message : error);
+      return null;
+    }
+  }
 }
 
 export const fileStorage = new FileStorage();

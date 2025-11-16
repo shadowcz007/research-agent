@@ -4,8 +4,9 @@ import { tool } from "@langchain/core/tools";
 import { TavilySearch } from "@langchain/tavily";
 import { ChatOpenAI } from "@langchain/openai";
 import { HumanMessage } from "@langchain/core/messages";
-import { createDeepAgent, type SubAgent } from "deepagents";
+import { createDeepAgent, type SubAgent, FilesystemBackend } from "deepagents";
 import { progressCallbacks, getCurrentTaskId } from "../storage/task-storage";
+import path from "path";
 
 type Topic = "general" | "news" | "finance";
 
@@ -254,14 +255,19 @@ const chatModel = new ChatOpenAI({
   temperature: 0,
 });
 
-const agentConfig = {
-  model: chatModel,
-  tools: [internetSearch],
-  systemPrompt: researchInstructions,
-  subagents: [critiqueSubAgent, researchSubAgent],
-  // 移除 middleware 配置以避免与 deepagents 内部的 SummarizationMiddleware 冲突
-  // deepagents 内部已经处理了消息摘要功能
-};
-
-export const agent = createDeepAgent(agentConfig);
+// 为每个报告创建独立文件系统的 agent
+export function createAgentForReport(reportId: string) {
+  const reportDir = path.join(process.cwd(), "reports", reportId);
+  
+  return createDeepAgent({
+    model: chatModel,
+    tools: [internetSearch],
+    systemPrompt: researchInstructions,
+    subagents: [critiqueSubAgent, researchSubAgent],
+    backend: new FilesystemBackend({ 
+      rootDir: reportDir, 
+      virtualMode: true 
+    }),
+  });
+}
 

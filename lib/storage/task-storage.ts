@@ -1,3 +1,14 @@
+// File info type definition
+export interface FileInfo {
+  path: string;
+  content?: string;
+  size: number;
+  timestamp?: string;
+  modified_at?: string;
+  operation?: string;
+  lastAccessed?: string;
+}
+
 // Task type definition
 export interface Task {
   status: "pending" | "processing" | "completed" | "failed";
@@ -5,7 +16,7 @@ export interface Task {
   stage: string;
   logs: Array<{ time: string; message: string }>;
   todos?: Array<{ content: string; status: string; id?: string }>;
-  files?: Record<string, { size: number; modified_at: string; path: string }>;
+  files?: Record<string, FileInfo>;
   toolCalls?: Array<{ name: string; timestamp: string; args: any; output?: any }>;
 }
 

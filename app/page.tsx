@@ -1,15 +1,27 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Search, Mic } from "lucide-react";
+import { Search, Mic, Clock, FileText } from "lucide-react";
+
+interface ReportMetadata {
+  id: string;
+  question: string;
+  createdAt: string;
+  updatedAt: string;
+  status: "pending" | "processing" | "completed" | "failed";
+  progress?: number;
+  stage?: string;
+}
 
 export default function HomePage() {
   const [question, setQuestion] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [reports, setReports] = useState<ReportMetadata[]>([]);
+  const [reportsLoading, setReportsLoading] = useState(true);
   const router = useRouter();
 
   const exampleQuestions = [
@@ -44,6 +56,88 @@ export default function HomePage() {
 
   const handleExampleClick = (example: string) => {
     setQuestion(example);
+  };
+
+  useEffect(() => {
+    const fetchReports = async () => {
+      try {
+        const response = await fetch("/api/reports");
+        if (!response.ok) throw new Error("获取报告列表失败");
+        const data = await response.json();
+        // 按更新时间倒序排列（最新的在前）
+        const sortedReports = (data.reports || []).sort(
+          (a: ReportMetadata, b: ReportMetadata) =>
+            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+        );
+        setReports(sortedReports);
+      } catch (error) {
+        console.error("Error fetching reports:", error);
+      } finally {
+        setReportsLoading(false);
+      }
+    };
+
+    fetchReports();
+  }, []);
+
+  const getStatusColor = (status: ReportMetadata["status"]) => {
+    switch (status) {
+      case "completed":
+        return "bg-green-100 text-green-800";
+      case "processing":
+        return "bg-blue-100 text-blue-800";
+      case "pending":
+        return "bg-yellow-100 text-yellow-800";
+      case "failed":
+        return "bg-red-100 text-red-800";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  const getStatusText = (status: ReportMetadata["status"]) => {
+    switch (status) {
+      case "completed":
+        return "已完成";
+      case "processing":
+        return "处理中";
+      case "pending":
+        return "待处理";
+      case "failed":
+        return "失败";
+      default:
+        return status;
+    }
+  };
+
+  const handleReportClick = async (report: ReportMetadata) => {
+    // 根据报告状态决定行为
+    if (report.status === "pending") {
+      // 待处理：调用恢复执行 API，然后跳转到进度页面
+      try {
+        const response = await fetch(`/api/research/${report.id}/resume`, {
+          method: "POST",
+        });
+        if (!response.ok) {
+          const error = await response.json();
+          alert(`恢复执行失败: ${error.error || "未知错误"}`);
+          return;
+        }
+        router.push(`/research/${report.id}`);
+      } catch (error) {
+        console.error("恢复执行失败:", error);
+        alert("恢复执行失败，请重试");
+      }
+    } else if (report.status === "completed") {
+      // 已完成：跳转到报告详情页
+      router.push(`/research/${report.id}/report`);
+    } else if (report.status === "processing") {
+      // 处理中：跳转到进度页面
+      router.push(`/research/${report.id}`);
+    } else if (report.status === "failed") {
+      // 失败：跳转到进度页面（可以查看错误信息）
+      router.push(`/research/${report.id}`);
+    }
   };
 
   return (
@@ -123,6 +217,76 @@ export default function HomePage() {
             </Card>
           </div>
 
+          {/* History Reports */}
+          <div className="mt-8">
+            <Card className="bg-slate-50">
+              <CardHeader>
+                <CardTitle className="text-xl text-blue-900 flex items-center gap-2">
+                  <FileText className="w-5 h-5" />
+                  历史报告
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {reportsLoading ? (
+                  <div className="text-center py-8 text-slate-600">
+                    加载中...
+                  </div>
+                ) : reports.length === 0 ? (
+                  <div className="text-center py-8 text-slate-500">
+                    暂无历史报告
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {reports.map((report) => (
+                      <Card
+                        key={report.id}
+                        className="bg-white hover:shadow-md transition-shadow cursor-pointer border border-slate-200"
+                        onClick={() => handleReportClick(report)}
+                      >
+                        <CardContent className="p-4">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-semibold text-slate-900 mb-2 line-clamp-2">
+                                {report.question}
+                              </h3>
+                              <div className="flex items-center gap-4 text-sm text-slate-600">
+                                <div className="flex items-center gap-1">
+                                  <Clock className="w-4 h-4" />
+                                  <span>
+                                    更新:{" "}
+                                    {new Date(report.updatedAt).toLocaleString(
+                                      "zh-CN"
+                                    )}
+                                  </span>
+                                </div>
+                                <span className="text-slate-400">•</span>
+                                <span>
+                                  创建:{" "}
+                                  {new Date(report.createdAt).toLocaleString(
+                                    "zh-CN"
+                                  )}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex-shrink-0">
+                              <span
+                                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
+                                  report.status
+                                )}`}
+                              >
+                                {getStatusText(report.status)}
+                              </span>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
           {/* Footer */}
           <div className="flex justify-between items-center pt-6 border-t border-slate-200">
             <div className="flex gap-6 text-sm text-blue-900">
@@ -140,4 +304,5 @@ export default function HomePage() {
     </div>
   );
 }
+
 
