@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -10,12 +10,19 @@ import { User, Settings } from "lucide-react";
 import { TodosPanel } from "@/components/research/todos-panel";
 import { FilesPanel } from "@/components/research/files-panel";
 
+interface Todo {
+  content: string;
+  status: string;
+  id?: string;
+  sub_todos?: Todo[];  // 支持嵌套子任务
+}
+
 interface ProgressData {
   status: "pending" | "processing" | "completed" | "failed";
   progress: number;
   stage: string;
   logs: Array<{ time: string; message: string }>;
-  todos?: Array<{ content: string; status: string; id?: string }>;
+  todos?: Todo[];
   files?: Record<string, { size: number; modified_at: string; path: string }>;
   toolCalls?: Array<{ name: string; timestamp: string; args: any; output?: any }>;
 }
@@ -23,12 +30,45 @@ interface ProgressData {
 export default function ResearchProgressPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const id = params.id as string;
   const [progressData, setProgressData] = useState<ProgressData | null>(null);
   const [estimatedTime, setEstimatedTime] = useState("00:07:35");
+  
+  // 检测是否为历史模式
+  const isHistoryMode = searchParams.get("mode") === "history";
+  const [loading, setLoading] = useState(isHistoryMode);
 
+  // 历史模式：从 API 加载数据
   useEffect(() => {
-    if (!id) return;
+    if (!id || !isHistoryMode) return;
+
+    const fetchHistoryData = async () => {
+      try {
+        setLoading(true);
+        const res = await fetch(`/api/reports/${id}/logs`);
+        const data = await res.json();
+
+        if (data.error) {
+          console.error("[前端] 获取历史数据失败:", data.error);
+          setLoading(false);
+          return;
+        }
+
+        setProgressData(data);
+        setLoading(false);
+      } catch (error) {
+        console.error("[前端] 获取历史数据出错:", error);
+        setLoading(false);
+      }
+    };
+
+    fetchHistoryData();
+  }, [id, isHistoryMode]);
+
+  // 实时模式：建立 SSE 连接
+  useEffect(() => {
+    if (!id || isHistoryMode) return;
 
     console.log(`[前端] 建立 SSE 连接，任务 ID: ${id}`);
     const eventSource = new EventSource(`/api/research/${id}/stream`);
@@ -108,7 +148,7 @@ export default function ResearchProgressPage() {
       console.log('[前端] 清理 SSE 连接');
       eventSource.close();
     };
-  }, [id, router]);
+  }, [id, router, isHistoryMode]);
 
   // Calculate estimated time remaining based on progress
   useEffect(() => {
@@ -130,7 +170,9 @@ export default function ResearchProgressPage() {
       <div className="border-b border-slate-700 px-6 py-4 flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold">RESEARCH AGENT</h1>
-          <p className="text-slate-400 text-sm">REAL-TIME PROGRESS</p>
+          <p className="text-slate-400 text-sm">
+            {isHistoryMode ? "历史记录" : "REAL-TIME PROGRESS"}
+          </p>
         </div>
         <div className="flex gap-4">
           <User className="w-6 h-6 cursor-pointer hover:text-blue-400" />
@@ -139,8 +181,14 @@ export default function ResearchProgressPage() {
       </div>
 
       <div className="container mx-auto px-6 py-8">
-        {/* Progress Overview */}
-        <Card className="bg-slate-800 border-slate-700 mb-6">
+        {loading && isHistoryMode ? (
+          <div className="text-center py-12">
+            <p className="text-slate-400">加载历史记录中...</p>
+          </div>
+        ) : (
+          <>
+            {/* Progress Overview */}
+            <Card className="bg-slate-800 border-slate-700 mb-6">
           <CardHeader>
             <CardTitle className="text-sm text-slate-400 uppercase">
               进度总览
@@ -207,12 +255,16 @@ export default function ResearchProgressPage() {
                   </div>
                 ))}
                 {(!progressData?.logs || progressData.logs.length === 0) && (
-                  <p className="text-slate-500">等待活动日志...</p>
+                  <p className="text-slate-500">
+                    {isHistoryMode ? "暂无日志记录" : "等待活动日志..."}
+                  </p>
                 )}
               </div>
             </ScrollArea>
           </CardContent>
         </Card>
+          </>
+        )}
       </div>
     </div>
   );

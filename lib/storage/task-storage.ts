@@ -9,13 +9,21 @@ export interface FileInfo {
   lastAccessed?: string;
 }
 
+// Todo type definition with support for nested sub-tasks
+export interface Todo {
+  content: string;
+  status: string;
+  id?: string;
+  sub_todos?: Todo[];  // 子任务列表，支持嵌套结构
+}
+
 // Task type definition
 export interface Task {
   status: "pending" | "processing" | "completed" | "failed";
   progress: number;
   stage: string;
   logs: Array<{ time: string; message: string }>;
-  todos?: Array<{ content: string; status: string; id?: string }>;
+  todos?: Todo[];
   files?: Record<string, FileInfo>;
   toolCalls?: Array<{ name: string; timestamp: string; args: any; output?: any }>;
 }

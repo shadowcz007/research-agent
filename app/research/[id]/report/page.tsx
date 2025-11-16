@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Cloud, Edit, Send, Download, User } from "lucide-react";
+import { ArrowLeft, Cloud, Edit, Send, Download, User, FileText } from "lucide-react";
 
 interface ReportData {
   id: string;
@@ -75,6 +75,10 @@ export default function ReportPage() {
 
   const handleDownload = () => {
     window.open(`/api/reports/${id}?download=true`, "_blank");
+  };
+
+  const handleViewLogs = () => {
+    router.push(`/research/${id}?mode=history`);
   };
 
   if (loading) {
@@ -153,7 +157,7 @@ export default function ReportPage() {
                   <Separator orientation="vertical" className="h-4" />
                   <span>Authored by: Research Agent v2.1</span>
                 </div>
-                <div className="mt-4">
+                <div className="mt-4 flex gap-2">
                   <Button
                     variant="outline"
                     onClick={handleDownload}
@@ -161,6 +165,14 @@ export default function ReportPage() {
                   >
                     <Download className="w-4 h-4" />
                     下载报告
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleViewLogs}
+                    className="gap-2"
+                  >
+                    <FileText className="w-4 h-4" />
+                    查看执行日志
                   </Button>
                 </div>
               </CardHeader>

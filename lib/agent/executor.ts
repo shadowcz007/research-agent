@@ -8,9 +8,16 @@ import {
   activeTasks,
   type ProgressCallback,
   type Task,
+  type Todo,
 } from "../storage/task-storage";
 import fs from "fs/promises";
 import path from "path";
+
+// 任务上下文接口，用于追踪父子任务关系
+interface TaskContext {
+  parentTodoIndex?: number;  // 当前子任务对应的父任务索引
+  isSubTask: boolean;       // 是否在子任务上下文中
+}
 
 export class AgentExecutorService {
   constructor() {
@@ -20,6 +27,9 @@ export class AgentExecutorService {
   // 防抖保存状态
   private saveStateDebounce: Map<string, NodeJS.Timeout> = new Map();
   private readonly SAVE_DEBOUNCE_MS = 2000; // 2秒防抖
+
+  // 任务上下文追踪：每个 reportId 对应一个上下文栈
+  private taskContexts: Map<string, TaskContext> = new Map();
 
   // 保存当前执行状态到 agent_raw_result.json
   private async saveAgentState(
@@ -171,6 +181,25 @@ export class AgentExecutorService {
                 timestamp: new Date().toISOString(),
                 args: event.data?.input || {},
               });
+
+              // 检测 task 工具调用，记录父任务上下文
+              if (toolName === "task" && task.todos) {
+                // 找到当前正在执行的顶层任务（status === "in_progress"）
+                const parentTodoIndex = task.todos.findIndex(
+                  (todo: Todo) => todo.status === "in_progress"
+                );
+                
+                if (parentTodoIndex !== -1) {
+                  // 记录父任务上下文
+                  this.taskContexts.set(reportId, {
+                    parentTodoIndex,
+                    isSubTask: true,
+                  });
+                  console.log(`[Executor] 📌 检测到子任务调用，父任务索引: ${parentTodoIndex}, 内容: ${task.todos[parentTodoIndex].content}`);
+                } else {
+                  console.log(`[Executor] ⚠️ 检测到 task 工具调用，但未找到 in_progress 的顶层任务`);
+                }
+              }
             }
           } else if (eventType === "on_tool_end") {
             const toolName = event.name;
@@ -217,17 +246,57 @@ export class AgentExecutorService {
                 }
                 
                 if (todos && Array.isArray(todos)) {
-                  task.todos = todos;
-                  console.log(`[Executor] ✅ Todos 已更新 (${todos.length} 项):`, todos);
+                  // 检查是否在子任务上下文中
+                  const context = this.taskContexts.get(reportId);
                   
-                  if (onProgress) {
-                    const inProgressTodo = todos.find((t: any) => t.status === "in_progress");
-                    if (inProgressTodo) {
-                      onProgress({
-                        stage: inProgressTodo.content,
-                        progress: currentProgress,
-                        log: `正在执行: ${inProgressTodo.content}`,
-                      });
+                  if (context && context.isSubTask && context.parentTodoIndex !== undefined && task.todos) {
+                    // 子任务上下文：更新父任务的 sub_todos
+                    const parentTodo = task.todos[context.parentTodoIndex];
+                    if (parentTodo) {
+                      // 确保父任务有 sub_todos 字段
+                      if (!parentTodo.sub_todos) {
+                        parentTodo.sub_todos = [];
+                      }
+                      // 更新子任务列表
+                      parentTodo.sub_todos = todos as Todo[];
+                      console.log(`[Executor] ✅ 子任务列表已更新到父任务 [${context.parentTodoIndex}] (${todos.length} 项):`, todos);
+                      
+                      // 触发进度更新
+                      if (onProgress) {
+                        const inProgressSubTodo = todos.find((t: any) => t.status === "in_progress");
+                        if (inProgressSubTodo) {
+                          onProgress({
+                            stage: `${parentTodo.content} > ${inProgressSubTodo.content}`,
+                            progress: currentProgress,
+                            log: `正在执行子任务: ${inProgressSubTodo.content}`,
+                          });
+                        }
+                      }
+                    } else {
+                      console.warn(`[Executor] ⚠️ 父任务索引 ${context.parentTodoIndex} 不存在`);
+                      // 降级：更新顶层列表
+                      task.todos = todos as Todo[];
+                    }
+                  } else {
+                    // 顶层上下文：正常更新顶层任务列表
+                    // 如果之前有子任务上下文，现在更新顶层列表，说明子任务已完成，清理上下文
+                    if (context && context.isSubTask) {
+                      console.log(`[Executor] 🧹 清理子任务上下文（顶层任务列表更新）`);
+                      this.taskContexts.delete(reportId);
+                    }
+                    
+                    task.todos = todos as Todo[];
+                    console.log(`[Executor] ✅ 顶层 Todos 已更新 (${todos.length} 项):`, todos);
+                    
+                    if (onProgress) {
+                      const inProgressTodo = todos.find((t: any) => t.status === "in_progress");
+                      if (inProgressTodo) {
+                        onProgress({
+                          stage: inProgressTodo.content,
+                          progress: currentProgress,
+                          log: `正在执行: ${inProgressTodo.content}`,
+                        });
+                      }
                     }
                   }
                 } else {
@@ -236,6 +305,13 @@ export class AgentExecutorService {
               } catch (e) {
                 console.error(`[Executor] 解析 todos 失败:`, e, `\nOutput:`, output);
               }
+            }
+
+            // 处理 task 工具完成：清理子任务上下文（当子任务完成时）
+            if (toolName === "task" && task) {
+              // 注意：这里不立即清理上下文，因为子代理可能还会继续调用 write_todos
+              // 上下文会在子任务全部完成或新的顶层任务开始时清理
+              console.log(`[Executor] 📌 task 工具调用完成，保持子任务上下文`);
             }
             
             // 监听所有文件系统工具调用（write_file, read_file, edit_file, delete_file 等）
