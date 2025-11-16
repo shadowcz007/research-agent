@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import { agentExecutorService } from "@/lib/agent/executor";
 import { fileStorage } from "@/lib/storage/file-storage";
-import { activeTasks, type Task } from "@/lib/storage/task-storage";
+import { activeTasks, type Task, calculateProgress } from "@/lib/storage/task-storage";
 
 export async function POST(request: NextRequest) {
   try {
@@ -28,19 +28,25 @@ export async function POST(request: NextRequest) {
 
     // Start agent execution in background
     agentExecutorService
-      .execute(id, question, (progress) => {
+      .execute(id, question, (progressUpdate) => {
         const task = activeTasks.get(id);
         if (task) {
-          console.log(`[API] 任务 ${id} 进度更新: ${progress.progress}% - ${progress.stage} - ${progress.log}`);
-          task.progress = progress.progress;
-          task.stage = progress.stage;
+          // 更新 stage 和 log
+          task.stage = progressUpdate.stage;
           task.logs.push({
             time: new Date().toLocaleTimeString("zh-CN"),
-            message: progress.log,
+            message: progressUpdate.log,
           });
-          if (progress.progress >= 100) {
+          
+          // 动态计算进度（基于 todos 完成度）
+          task.progress = calculateProgress(task);
+          
+          console.log(`[API] 任务 ${id} 进度更新: ${task.progress}% - ${task.stage} - ${progressUpdate.log}`);
+          
+          // 更新状态
+          if (task.progress >= 100) {
             task.status = "completed";
-          } else {
+          } else if (task.progress > 0) {
             task.status = "processing";
           }
         }

@@ -120,14 +120,14 @@ export class AgentExecutorService {
       // 不再需要手动保存问题，agent 会自动通过 write_file 保存到 /question.txt
       console.log(`[Executor] Agent 将自动保存问题到 question.txt`);
       if (onProgress) {
-        console.log(`[Executor] 发送进度: 初始化 5%`);
-        onProgress({ stage: "初始化", progress: 5, log: "准备研究环境" });
+        console.log(`[Executor] 发送进度: 初始化`);
+        onProgress({ stage: "初始化", progress: 0, log: "准备研究环境" });
       }
 
       // Execute agent with deepagents
       if (onProgress) {
-        console.log(`[Executor] 发送进度: 开始研究 15%`);
-        onProgress({ stage: "开始研究", progress: 15, log: "正在搜索相关资料..." });
+        console.log(`[Executor] 发送进度: 开始研究`);
+        onProgress({ stage: "开始研究", progress: 0, log: "正在搜索相关资料..." });
       }
 
       // 为此报告创建独立文件系统的 agent
@@ -167,7 +167,7 @@ export class AgentExecutorService {
             if (onProgress) {
               onProgress({
                 stage: `工具调用: ${toolName}`,
-                progress: Math.min(currentProgress + 5, 80),
+                progress: 0,
                 log: `正在调用工具: ${toolName}...`,
               });
             }
@@ -267,7 +267,7 @@ export class AgentExecutorService {
                         if (inProgressSubTodo) {
                           onProgress({
                             stage: `${parentTodo.content} > ${inProgressSubTodo.content}`,
-                            progress: currentProgress,
+                            progress: 0,
                             log: `正在执行子任务: ${inProgressSubTodo.content}`,
                           });
                         }
@@ -293,7 +293,7 @@ export class AgentExecutorService {
                       if (inProgressTodo) {
                         onProgress({
                           stage: inProgressTodo.content,
-                          progress: currentProgress,
+                          progress: 0,
                           log: `正在执行: ${inProgressTodo.content}`,
                         });
                       }
@@ -415,13 +415,13 @@ export class AgentExecutorService {
             } else if (toolName === "internet_search" && onProgress) {
               onProgress({
                 stage: "搜索资料",
-                progress: currentProgress,
+                progress: 0,
                 log: "搜索完成，正在分析结果...",
               });
             } else if (toolName === "task" && onProgress) {
               onProgress({
                 stage: "子任务执行",
-                progress: currentProgress,
+                progress: 0,
                 log: "子agent执行完成",
               });
             }
@@ -474,10 +474,18 @@ export class AgentExecutorService {
       // 添加任务状态到结果中
       const task = activeTasks.get(reportId);
       if (task) {
+        // 标记最终状态
+        task.progress = 100;
+        task.status = "completed";
+        task.stage = "完成";
+        
         result.task = {
           status: task.status,
           progress: task.progress,
           stage: task.stage,
+          finalProgress: 100,  // 新增：明确的最终进度
+          finalStatus: "completed",  // 新增：明确的最终状态
+          finalStage: "已完成",  // 新增：明确的最终阶段
           todos: task.todos || [],
           files: task.files || {},
           toolCalls: task.toolCalls || [],
@@ -496,8 +504,8 @@ export class AgentExecutorService {
       
       // 提取报告内容
       if (onProgress) {
-        console.log(`[Executor] 发送进度: 提取报告 85%`);
-        onProgress({ stage: "提取报告", progress: 85, log: "正在检查报告文件..." });
+        console.log(`[Executor] 发送进度: 提取报告`);
+        onProgress({ stage: "提取报告", progress: 0, log: "正在检查报告文件..." });
       }
 
       // 检查报告文件是否已通过 FilesystemBackend 创建
@@ -508,7 +516,7 @@ export class AgentExecutorService {
         console.log(`[Executor] ✅ 报告已通过 FilesystemBackend 直接写入 (大小: ${stats.size} 字节)`);
         
         if (onProgress) {
-          onProgress({ stage: "撰写报告", progress: 90, log: "报告已保存到文件系统" });
+          onProgress({ stage: "撰写报告", progress: 0, log: "报告已保存到文件系统" });
         }
       } catch (error) {
         // 降级方案：从 result.files 提取
@@ -524,7 +532,7 @@ export class AgentExecutorService {
           await fileStorage.saveReport(reportId, reportContent);
           
           if (onProgress) {
-            onProgress({ stage: "撰写报告", progress: 90, log: "报告已保存" });
+            onProgress({ stage: "撰写报告", progress: 0, log: "报告已保存" });
           }
         } else {
           throw new Error("Agent 未生成报告文件，FilesystemBackend 可能配置失败");
@@ -532,8 +540,8 @@ export class AgentExecutorService {
       }
 
       if (onProgress) {
-        console.log(`[Executor] 发送进度: 完成 100%`);
-        onProgress({ stage: "完成", progress: 100, log: "研究任务已完成" });
+        console.log(`[Executor] 发送进度: 完成`);
+        onProgress({ stage: "完成", progress: 0, log: "研究任务已完成" });
       }
     } catch (error) {
       console.error(`[Executor] 任务执行失败:`, error);

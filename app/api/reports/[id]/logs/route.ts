@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fileStorage } from "@/lib/storage/file-storage";
+import { countTodos } from "@/lib/storage/task-storage";
 
 export async function GET(
   request: NextRequest,
@@ -20,12 +21,40 @@ export async function GET(
 
     // 从 task 字段提取基本信息
     const task = rawResult.task || {};
-    const status = task.status || "completed";
-    const progress = task.progress || 100;
-    const stage = task.stage || "已完成";
+    
+    // 方案 C: 尝试获取最终状态（如果 task 有 finalProgress/finalStatus）
+    let progress = task.finalProgress ?? task.progress ?? 0;
+    let status = task.finalStatus ?? task.status ?? "processing";
+    let stage = task.finalStage ?? task.stage ?? "处理中";
+    
     const todos = task.todos || [];
     const files = task.files || {};
     const toolCalls = task.toolCalls || [];
+    
+    // 方案 B: 基于 todos 计算进度
+    let calculatedProgress = 0;
+    if (todos.length > 0) {
+      const { total, completed } = countTodos(todos);
+      if (total > 0) {
+        calculatedProgress = Math.round((completed / total) * 90);
+        // 如果没有最终进度，使用计算值
+        if (!task.finalProgress) {
+          progress = Math.max(progress, calculatedProgress);
+        }
+      }
+    }
+    
+    // 方案 A: 检查报告是否存在（最高优先级）
+    const reportExists = await fileStorage.getReport(id);
+    if (reportExists) {
+      progress = 100;
+      status = "completed";
+      stage = "已完成";
+    } else if (calculatedProgress >= 90 && !reportExists) {
+      // todos 已完成但报告不存在，可能生成失败
+      status = "processing";
+      stage = "生成报告中";
+    }
 
     // 从 messages 字段生成 logs 数组
     const logs: Array<{ time: string; message: string }> = [];

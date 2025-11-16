@@ -87,6 +87,129 @@
   @apply list-decimal list-inside mb-4 space-y-2;
 }
 
+/* Dark theme markdown styles for activity logs */
+.prose-invert {
+  color: rgb(203, 213, 225) !important; /* slate-300 */
+}
+
+.prose-invert * {
+  color: inherit;
+}
+
+.prose-invert h1,
+.prose-invert h2,
+.prose-invert h3,
+.prose-invert h4,
+.prose-invert h5,
+.prose-invert h6 {
+  color: rgb(226, 232, 240) !important; /* slate-200 */
+  font-weight: 600;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.prose-invert h1 {
+  font-size: 1.875rem;
+  line-height: 2.25rem;
+}
+
+.prose-invert h2 {
+  font-size: 1.5rem;
+  line-height: 2rem;
+}
+
+.prose-invert h3 {
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+}
+
+.prose-invert p {
+  margin: 0.5rem 0;
+  color: rgb(203, 213, 225) !important; /* slate-300 */
+}
+
+.prose-invert code {
+  background: rgb(30, 41, 59) !important; /* slate-800 */
+  color: rgb(96, 165, 250) !important; /* blue-400 */
+  padding: 0.2em 0.4em;
+  border-radius: 0.25rem;
+  font-size: 0.875em;
+  font-family: ui-monospace, monospace;
+}
+
+.prose-invert pre {
+  background: rgb(15, 23, 42) !important; /* slate-900 */
+  border: 1px solid rgb(51, 65, 85); /* slate-700 */
+  border-radius: 0.5rem;
+  padding: 1rem;
+  overflow-x: auto;
+  color: rgb(226, 232, 240) !important; /* slate-200 */
+}
+
+.prose-invert pre code {
+  background: transparent !important;
+  padding: 0;
+  color: rgb(226, 232, 240) !important; /* slate-200 */
+}
+
+.prose-invert a {
+  color: rgb(96, 165, 250) !important; /* blue-400 */
+  text-decoration: underline;
+}
+
+.prose-invert strong {
+  color: rgb(226, 232, 240) !important; /* slate-200 */
+  font-weight: 600;
+}
+
+.prose-invert em {
+  color: rgb(203, 213, 225) !important; /* slate-300 */
+}
+
+.prose-invert ul, 
+.prose-invert ol {
+  margin: 0.5rem 0;
+  padding-left: 1.5rem;
+  color: rgb(203, 213, 225) !important; /* slate-300 */
+}
+
+.prose-invert li {
+  margin: 0.25rem 0;
+  color: rgb(203, 213, 225) !important; /* slate-300 */
+}
+
+.prose-invert blockquote {
+  border-left: 4px solid rgb(59, 130, 246); /* blue-500 */
+  padding-left: 1rem;
+  margin: 1rem 0;
+  font-style: italic;
+  color: rgb(203, 213, 225) !important; /* slate-300 */
+}
+
+.prose-invert table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+}
+
+.prose-invert th,
+.prose-invert td {
+  border: 1px solid rgb(51, 65, 85); /* slate-700 */
+  padding: 0.5rem;
+  color: rgb(203, 213, 225) !important; /* slate-300 */
+}
+
+.prose-invert th {
+  background: rgb(30, 41, 59); /* slate-800 */
+  color: rgb(226, 232, 240) !important; /* slate-200 */
+  font-weight: 600;
+}
+
+.prose-invert hr {
+  border-color: rgb(51, 65, 85); /* slate-700 */
+  margin: 1.5rem 0;
+}
+
 .prose li {
   @apply mb-1;
 }

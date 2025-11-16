@@ -6,9 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { User, Settings } from "lucide-react";
+import { User, Settings, FileText } from "lucide-react";
 import { TodosPanel } from "@/components/research/todos-panel";
 import { FilesPanel } from "@/components/research/files-panel";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 interface Todo {
   content: string;
@@ -174,7 +176,17 @@ export default function ResearchProgressPage() {
             {isHistoryMode ? "历史记录" : "REAL-TIME PROGRESS"}
           </p>
         </div>
-        <div className="flex gap-4">
+        <div className="flex gap-4 items-center">
+          {isHistoryMode && (
+            <Button
+              variant="outline"
+              onClick={() => router.push(`/research/${id}/report`)}
+              className="gap-2 bg-slate-800/50 text-slate-200 border-slate-600 hover:bg-slate-700 hover:text-white hover:border-slate-500"
+            >
+              <FileText className="w-4 h-4" />
+              查看报告
+            </Button>
+          )}
           <User className="w-6 h-6 cursor-pointer hover:text-blue-400" />
           <Settings className="w-6 h-6 cursor-pointer hover:text-blue-400" />
         </div>
@@ -196,7 +208,7 @@ export default function ResearchProgressPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <h2 className="text-2xl font-bold mb-2">
+              <h2 className="text-2xl font-bold mb-2 text-white">
                 {progressData?.stage || "初始化中..."}
               </h2>
               <Progress
@@ -248,10 +260,14 @@ export default function ResearchProgressPage() {
               <div className="space-y-4">
                 {progressData?.logs?.map((log, index) => (
                   <div key={index} className="flex gap-4 text-sm">
-                    <span className="text-slate-500 font-mono min-w-[80px]">
+                    <span className="text-slate-500 font-mono min-w-[80px] flex-shrink-0">
                       {log.time}
                     </span>
-                    <span className="text-slate-300">{log.message}</span>
+                    <div className="flex-1 min-w-0 prose prose-sm prose-invert max-w-none overflow-x-auto">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {log.message}
+                      </ReactMarkdown>
+                    </div>
                   </div>
                 ))}
                 {(!progressData?.logs || progressData.logs.length === 0) && (
