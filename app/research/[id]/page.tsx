@@ -259,7 +259,7 @@ export default function ResearchProgressPage() {
 
         {/* Todos and Files Panels */}
         <div className="grid md:grid-cols-2 gap-6 mb-6">
-          <TodosPanel todos={progressData?.todos || []} />
+          <TodosPanel todos={progressData?.todos || []} researchId={id} />
           <FilesPanel files={progressData?.files || {}} />
         </div>
 

@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CheckCircle2, Circle, Loader2, ChevronDown, ChevronRight } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 
 interface Todo {
   content: string;
@@ -13,6 +13,7 @@ interface Todo {
 
 interface TodosPanelProps {
   todos: Todo[];
+  researchId?: string; // 研究项目 ID，用于持久化折叠状态
 }
 
 interface TodoItemProps {
@@ -158,46 +159,63 @@ function TodoItem({ todo, index, level = 0, expandedItems, onToggleExpand }: Tod
   );
 }
 
-export function TodosPanel({ todos }: TodosPanelProps) {
-  // 管理展开/折叠状态
-  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+export function TodosPanel({ todos, researchId }: TodosPanelProps) {
+  // 生成 localStorage 的 key
+  const storageKey = useMemo(
+    () => researchId ? `todos-expanded-${researchId}` : 'todos-expanded-default',
+    [researchId]
+  );
 
-  // 递归查找所有包含 in_progress 子任务的项目
-  const findInProgressTodos = (taskList: Todo[], parentKey: string = "", level: number = 0): Set<string> => {
-    const expanded = new Set<string>();
-    taskList.forEach((todo, index) => {
-      const itemKey = todo.id || `${parentKey}-${index}-${level}`;
-      
-      // 如果任务本身是 in_progress，展开它和所有父级
-      if (todo.status === "in_progress") {
-        expanded.add(itemKey);
-        // 展开所有父级
-        if (parentKey) {
-          expanded.add(parentKey);
-        }
+  // 从 localStorage 加载保存的展开状态
+  const loadExpandedState = useCallback((): Set<string> => {
+    if (typeof window === 'undefined') return new Set();
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved) {
+        const expandedArray = JSON.parse(saved) as string[];
+        return new Set(expandedArray);
       }
-      
-      // 递归检查子任务
-      if (todo.sub_todos && todo.sub_todos.length > 0) {
-        const subExpanded = findInProgressTodos(todo.sub_todos, itemKey, level + 1);
-        if (subExpanded.size > 0) {
-          // 如果有子任务需要展开，也展开当前项
-          expanded.add(itemKey);
-          // 合并子任务的展开项
-          subExpanded.forEach(key => expanded.add(key));
-        }
-      }
-    });
-    return expanded;
-  };
+    } catch (error) {
+      console.error('加载折叠状态失败:', error);
+    }
+    return new Set();
+  }, [storageKey]);
 
-  // 默认展开有 in_progress 子任务的项目（递归处理所有层级）
+  // 保存展开状态到 localStorage
+  const saveExpandedState = useCallback((expanded: Set<string>) => {
+    if (typeof window === 'undefined') return;
+    try {
+      const expandedArray = Array.from(expanded);
+      localStorage.setItem(storageKey, JSON.stringify(expandedArray));
+    } catch (error) {
+      console.error('保存折叠状态失败:', error);
+    }
+  }, [storageKey]);
+
+  // 管理展开/折叠状态，从 localStorage 初始化
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(() => {
+    if (typeof window === 'undefined') return new Set();
+    try {
+      const key = researchId ? `todos-expanded-${researchId}` : 'todos-expanded-default';
+      const saved = localStorage.getItem(key);
+      if (saved) {
+        const expandedArray = JSON.parse(saved) as string[];
+        return new Set(expandedArray);
+      }
+    } catch (error) {
+      console.error('初始化折叠状态失败:', error);
+    }
+    return new Set();
+  });
+
+  // 当 researchId 变化时，重新加载保存的状态
   useEffect(() => {
-    const defaultExpanded = findInProgressTodos(todos);
-    setExpandedItems(defaultExpanded);
-  }, [todos]);
+    // 只加载保存的状态，不自动展开任何项目
+    const savedState = loadExpandedState();
+    setExpandedItems(savedState);
+  }, [loadExpandedState]);
 
-  const toggleExpand = (key: string) => {
+  const toggleExpand = useCallback((key: string) => {
     setExpandedItems((prev) => {
       const next = new Set(prev);
       if (next.has(key)) {
@@ -205,9 +223,11 @@ export function TodosPanel({ todos }: TodosPanelProps) {
       } else {
         next.add(key);
       }
+      // 立即保存到 localStorage
+      saveExpandedState(next);
       return next;
     });
-  };
+  }, [saveExpandedState]);
 
   // 递归计算总任务数（包括所有层级的子任务）
   const getTotalTaskCount = (taskList: Todo[] = todos): number => {
