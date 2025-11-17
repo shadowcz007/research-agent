@@ -1,7 +1,8 @@
 "use client";
 
-import { Search, Zap, CheckSquare, Circle, Loader2, CheckCircle2 } from "lucide-react";
+import { Search, Zap, CheckSquare, Circle, Loader2, CheckCircle2, FileText, ChevronDown, ChevronUp } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { useState } from "react";
 
 interface TaskMessage {
   subagent_type?: string;
@@ -19,9 +20,14 @@ interface SearchMessage {
   query?: string;
 }
 
+interface WriteFileMessage {
+  file_path?: string;
+  content?: string;
+}
+
 interface ToolMessageDisplayProps {
   toolName: string;
-  message: TaskMessage | TodosMessage | SearchMessage;
+  message: TaskMessage | TodosMessage | SearchMessage | WriteFileMessage;
 }
 
 function TaskMessageDisplay({ message }: { message: TaskMessage }) {
@@ -128,6 +134,77 @@ function SearchMessageDisplay({ message }: { message: SearchMessage }) {
   );
 }
 
+function WriteFileMessageDisplay({ message }: { message: WriteFileMessage }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  
+  if (!message.file_path) {
+    return null;
+  }
+
+  const content = message.content || "";
+  const contentLines = content.split("\n");
+  const previewLines = 5;
+  const hasMoreContent = contentLines.length > previewLines;
+  const displayContent = isExpanded 
+    ? content 
+    : contentLines.slice(0, previewLines).join("\n");
+  const contentLength = content.length;
+  const fileSize = contentLength > 1024 
+    ? `${(contentLength / 1024).toFixed(2)} KB` 
+    : `${contentLength} 字符`;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2 text-sm">
+        <div className="flex items-center gap-2 px-2 py-1 rounded-md bg-green-900/30 text-green-400 border border-green-700/30">
+          <FileText className="w-4 h-4" />
+          <span className="font-medium">文件路径:</span>
+        </div>
+        <span className="text-slate-300 font-mono text-xs">{message.file_path}</span>
+      </div>
+      
+      {content && (
+        <div className="mt-2">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2 text-xs text-slate-400">
+              <FileText className="w-3 h-3" />
+              <span>文件内容 ({fileSize})</span>
+            </div>
+            {hasMoreContent && (
+              <button
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 transition-colors"
+              >
+                {isExpanded ? (
+                  <>
+                    <ChevronUp className="w-3 h-3" />
+                    <span>收起</span>
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown className="w-3 h-3" />
+                    <span>展开全部 ({contentLines.length} 行)</span>
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+          <div className="bg-slate-900/70 border border-slate-700/50 rounded-md p-3 overflow-x-auto">
+            <pre className="text-xs text-slate-300 whitespace-pre-wrap font-mono">
+              {displayContent}
+              {!isExpanded && hasMoreContent && (
+                <span className="text-slate-500 italic">
+                  {"\n... (还有 " + (contentLines.length - previewLines) + " 行)"}
+                </span>
+              )}
+            </pre>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function ToolMessageDisplay({ toolName, message }: ToolMessageDisplayProps) {
   // 根据工具类型显示不同的 UI
   if (toolName === "task") {
@@ -136,6 +213,8 @@ export function ToolMessageDisplay({ toolName, message }: ToolMessageDisplayProp
     return <TodosMessageDisplay message={message as TodosMessage} />;
   } else if (toolName === "internet_search") {
     return <SearchMessageDisplay message={message as SearchMessage} />;
+  } else if (toolName === "write_file") {
+    return <WriteFileMessageDisplay message={message as WriteFileMessage} />;
   }
 
   // 未知工具类型，返回 null 或默认显示
