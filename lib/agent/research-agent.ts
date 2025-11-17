@@ -52,7 +52,8 @@ export const internetSearch = tool(
         tavilyApiKey: process.env.TAVILY_API_KEY,
         includeRawContent,
         topic,
-        
+        searchDepth:'advanced', //提高准确率
+        chunksPerSource:5
       });
 
       // Send progress: 请求已发送
