@@ -13,12 +13,6 @@ import {
 import fs from "fs/promises";
 import path from "path";
 
-// 任务上下文接口，用于追踪父子任务关系
-interface TaskContext {
-  parentTodoIndex?: number;  // 当前子任务对应的父任务索引
-  isSubTask: boolean;       // 是否在子任务上下文中
-}
-
 export class AgentExecutorService {
   constructor() {
     // Agent is created in research-agent.ts using deepagents
@@ -27,9 +21,6 @@ export class AgentExecutorService {
   // 防抖保存状态
   private saveStateDebounce: Map<string, NodeJS.Timeout> = new Map();
   private readonly SAVE_DEBOUNCE_MS = 2000; // 2秒防抖
-
-  // 任务上下文追踪：每个 reportId 对应一个上下文栈
-  private taskContexts: Map<string, TaskContext> = new Map();
 
   // 保存当前执行状态到 agent_raw_result.json
   private async saveAgentState(
@@ -231,25 +222,6 @@ export class AgentExecutorService {
                 timestamp: new Date().toISOString(),
                 args: event.data?.input || {},
               });
-
-              // 检测 task 工具调用，记录父任务上下文
-              if (toolName === "task" && task.todos) {
-                // 找到当前正在执行的顶层任务（status === "in_progress"）
-                const parentTodoIndex = task.todos.findIndex(
-                  (todo: Todo) => todo.status === "in_progress"
-                );
-                
-                if (parentTodoIndex !== -1) {
-                  // 记录父任务上下文
-                  this.taskContexts.set(reportId, {
-                    parentTodoIndex,
-                    isSubTask: true,
-                  });
-                  console.log(`[Executor] 📌 检测到子任务调用，父任务索引: ${parentTodoIndex}, 内容: ${task.todos[parentTodoIndex].content}`);
-                } else {
-                  console.log(`[Executor] ⚠️ 检测到 task 工具调用，但未找到 in_progress 的顶层任务`);
-                }
-              }
             }
           } else if (eventType === "on_tool_end") {
             const toolName = event.name;
@@ -272,22 +244,21 @@ export class AgentExecutorService {
               try {
                 let todos = null;
                 
-                // 优先从 output.update.todos 提取（对象格式，支持嵌套结构）
+                // 优先从 output.update.todos 提取
                 if (output?.update?.todos && Array.isArray(output.update.todos)) {
                   todos = output.update.todos;
                   console.log(`[Executor] 从 output.update.todos 提取 todos (${todos.length} 项):`, JSON.stringify(todos, null, 2));
                 }
-                // 降级：从 output.update.messages 的字符串中提取（需要支持嵌套 JSON）
+                // 降级：从 output.update.messages 的字符串中提取
                 else if (output?.update?.messages?.[0]?.kwargs?.content) {
                   const content = output.update.messages[0].kwargs.content;
-                  // 使用更灵活的匹配，支持多行 JSON（嵌套结构）
                   const todosMatch = content.match(/Updated todo list to (\[[\s\S]*\])/);
                   if (todosMatch) {
                     try {
                       todos = JSON.parse(todosMatch[1]);
                       console.log(`[Executor] 从 messages 字符串提取 todos (${todos.length} 项):`, JSON.stringify(todos, null, 2));
                     } catch (parseError) {
-                      console.warn(`[Executor] ⚠️ 解析嵌套 JSON 失败，尝试简单匹配:`, parseError);
+                      console.warn(`[Executor] ⚠️ 解析 JSON 失败，尝试简单匹配:`, parseError);
                       // 降级：尝试简单匹配
                       const simpleMatch = content.match(/Updated todo list to (\[.*\])/);
                       if (simpleMatch) {
@@ -297,16 +268,15 @@ export class AgentExecutorService {
                     }
                   }
                 }
-                // 最后降级：尝试从字符串格式的 output 提取（兼容旧版本，支持嵌套）
+                // 最后降级：尝试从字符串格式的 output 提取
                 else if (typeof output === 'string') {
-                  // 使用更灵活的匹配，支持多行 JSON（嵌套结构）
                   const todosMatch = output.match(/Updated todo list to (\[[\s\S]*\])/);
                   if (todosMatch) {
                     try {
                       todos = JSON.parse(todosMatch[1]);
                       console.log(`[Executor] 从字符串 output 提取 todos (${todos.length} 项):`, JSON.stringify(todos, null, 2));
                     } catch (parseError) {
-                      console.warn(`[Executor] ⚠️ 解析嵌套 JSON 失败，尝试简单匹配:`, parseError);
+                      console.warn(`[Executor] ⚠️ 解析 JSON 失败，尝试简单匹配:`, parseError);
                       // 降级：尝试简单匹配
                       const simpleMatch = output.match(/Updated todo list to (\[.*\])/);
                       if (simpleMatch) {
@@ -318,66 +288,17 @@ export class AgentExecutorService {
                 }
                 
                 if (todos && Array.isArray(todos)) {
-                  // 验证并记录嵌套结构
-                  const hasNestedTodos = todos.some((todo: any) => todo.sub_todos && Array.isArray(todo.sub_todos) && todo.sub_todos.length > 0);
-                  if (hasNestedTodos) {
-                    const nestedCount = todos.reduce((count: number, todo: any) => {
-                      return count + (todo.sub_todos?.length || 0);
-                    }, 0);
-                    console.log(`[Executor] 📊 检测到嵌套结构: ${todos.length} 个顶层任务，${nestedCount} 个子任务`);
-                  }
+                  // 直接更新顶层任务列表（忽略任何可能的 sub_todos 字段）
+                  task.todos = todos as Todo[];
+                  console.log(`[Executor] ✅ 顶层 Todos 已更新 (${todos.length} 项):`, JSON.stringify(todos, null, 2));
                   
-                  // 检查是否在子任务上下文中
-                  const context = this.taskContexts.get(reportId);
-                  
-                  if (context && context.isSubTask && context.parentTodoIndex !== undefined && task.todos) {
-                    // 子任务上下文：更新父任务的 sub_todos
-                    const parentTodo = task.todos[context.parentTodoIndex];
-                    if (parentTodo) {
-                      // 确保父任务有 sub_todos 字段
-                      if (!parentTodo.sub_todos) {
-                        parentTodo.sub_todos = [];
-                      }
-                      // 更新子任务列表（保留嵌套结构）
-                      parentTodo.sub_todos = todos as Todo[];
-                      const subNestedCount = todos.reduce((count: number, todo: any) => {
-                        return count + (todo.sub_todos?.length || 0);
-                      }, 0);
-                      console.log(`[Executor] ✅ 子任务列表已更新到父任务 [${context.parentTodoIndex}] (${todos.length} 项${subNestedCount > 0 ? `, ${subNestedCount} 个嵌套子任务` : ''}):`, JSON.stringify(todos, null, 2));
-                      
-                      // 触发进度更新
-                      const inProgressSubTodo = todos.find((t: any) => t.status === "in_progress");
-                      if (inProgressSubTodo) {
-                        await this.logProgressEvent(reportId, {
-                          stage: `${parentTodo.content} > ${inProgressSubTodo.content}`,
-                          progress: 0,
-                          log: `正在执行子任务: ${inProgressSubTodo.content}`,
-                        });
-                      }
-                    } else {
-                      console.warn(`[Executor] ⚠️ 父任务索引 ${context.parentTodoIndex} 不存在`);
-                      // 降级：更新顶层列表
-                      task.todos = todos as Todo[];
-                    }
-                  } else {
-                    // 顶层上下文：正常更新顶层任务列表（保留嵌套结构）
-                    // 如果之前有子任务上下文，现在更新顶层列表，说明子任务已完成，清理上下文
-                    if (context && context.isSubTask) {
-                      console.log(`[Executor] 🧹 清理子任务上下文（顶层任务列表更新）`);
-                      this.taskContexts.delete(reportId);
-                    }
-                    
-                    task.todos = todos as Todo[];
-                    console.log(`[Executor] ✅ 顶层 Todos 已更新 (${todos.length} 项${hasNestedTodos ? `, 包含嵌套结构` : ''}):`, JSON.stringify(todos, null, 2));
-                    
-                    const inProgressTodo = todos.find((t: any) => t.status === "in_progress");
-                    if (inProgressTodo) {
-                      await this.logProgressEvent(reportId, {
-                        stage: inProgressTodo.content,
-                        progress: 0,
-                        log: `正在执行: ${inProgressTodo.content}`,
-                      });
-                    }
+                  const inProgressTodo = todos.find((t: any) => t.status === "in_progress");
+                  if (inProgressTodo) {
+                    await this.logProgressEvent(reportId, {
+                      stage: inProgressTodo.content,
+                      progress: 0,
+                      log: `正在执行: ${inProgressTodo.content}`,
+                    });
                   }
                 } else {
                   console.warn(`[Executor] ⚠️ 无法提取 todos，output 结构:`, JSON.stringify(output, null, 2));
@@ -386,16 +307,9 @@ export class AgentExecutorService {
                 console.error(`[Executor] 解析 todos 失败:`, e, `\nOutput:`, output);
               }
             }
-
-            // 处理 task 工具完成：清理子任务上下文（当子任务完成时）
-            if (toolName === "task" && task) {
-              // 注意：这里不立即清理上下文，因为子代理可能还会继续调用 write_todos
-              // 上下文会在子任务全部完成或新的顶层任务开始时清理
-              console.log(`[Executor] 📌 task 工具调用完成，保持子任务上下文`);
-            }
             
-            // 监听所有文件系统工具调用（write_file, read_file, edit_file, delete_file 等）
-            const fileTools = ['write_file', 'read_file', 'edit_file', 'delete_file', 'list_files'];
+            // 监听所有文件系统工具调用（write_file, read_file, edit_file 等）
+            const fileTools = ['write_file', 'read_file', 'edit_file', 'ls','glob','grep'];
             if (fileTools.includes(toolName) && task) {
               try {
                 // 从工具调用历史中获取参数，而不是从 event.data.input
