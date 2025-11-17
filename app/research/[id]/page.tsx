@@ -422,6 +422,17 @@ export default function ResearchProgressPage() {
         <div className="flex gap-4 items-center">
           {!isHistoryMode && (
             <>
+              {/* 如果任务已完成，显示查看报告按钮 */}
+              {progressData?.status === "completed" && (
+                <Button
+                  variant="outline"
+                  onClick={() => router.push(`/research/${id}/report`)}
+                  className="gap-2 bg-blue-900/50 text-blue-200 border-blue-600 hover:bg-blue-800 hover:text-white hover:border-blue-500"
+                >
+                  <FileText className="w-4 h-4" />
+                  查看报告
+                </Button>
+              )}
               {/* 如果任务被停止（failed 状态），显示继续按钮 */}
               {progressData?.status === "failed" && (
                 <Button
