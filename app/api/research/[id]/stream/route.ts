@@ -96,10 +96,27 @@ export async function GET(
         )
       );
 
-      // 如果任务已完成或失败，直接关闭连接（不需要轮询）
-      if (task.status === "completed" || task.status === "failed") {
-        console.log(`[SSE] 任务${task.status === "completed" ? "完成" : "失败"}，关闭连接`);
-        controller.close();
+      // 如果任务已完成或失败，发送状态后延迟关闭连接
+      if (task.status === "completed" || task.status === "failed" || task.stage === "完成") {
+        const isCompleted = task.status === "completed" || task.stage === "完成";
+        console.log(`[SSE] 任务${isCompleted ? "完成" : "失败"}，发送最终状态后延迟关闭连接`);
+        
+        // 确保发送最终状态（可能包含最新的日志）
+        const finalData = {
+          ...initialData,
+          status: isCompleted ? "completed" : task.status,
+          stage: task.stage,
+        };
+        
+        controller.enqueue(
+          encoder.encode(`data: ${JSON.stringify(finalData)}\n\n`)
+        );
+        
+        // 等待 2000ms，确保前端收到完成状态并处理
+        setTimeout(() => {
+          console.log(`[SSE] 延迟关闭连接`);
+          controller.close();
+        }, 2000);
         return;
       }
 
@@ -155,10 +172,17 @@ export async function GET(
             )
           );
 
-          if (currentTask.status === "completed" || currentTask.status === "failed") {
-            console.log(`[SSE] 任务${currentTask.status === "completed" ? "完成" : "失败"}，关闭连接`);
+          // 检测到完成状态时，延迟关闭连接
+          if (currentTask.status === "completed" || currentTask.status === "failed" || currentTask.stage === "完成") {
+            const isCompleted = currentTask.status === "completed" || currentTask.stage === "完成";
+            console.log(`[SSE] 检测到任务${isCompleted ? "完成" : "失败"}，发送状态后延迟关闭连接`);
             clearInterval(interval);
-            controller.close();
+            
+            // 等待 2000ms，确保前端收到完成状态并处理
+            setTimeout(() => {
+              console.log(`[SSE] 延迟关闭连接`);
+              controller.close();
+            }, 2000);
           }
         } catch (error) {
           console.error(`[SSE] 发送更新时出错:`, error);
