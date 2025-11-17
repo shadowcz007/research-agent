@@ -52,6 +52,7 @@ export const internetSearch = tool(
         tavilyApiKey: process.env.TAVILY_API_KEY,
         includeRawContent,
         topic,
+        
       });
 
       // Send progress: 请求已发送
@@ -232,6 +233,13 @@ Make sure the final answer report is in the SAME language as the human messages 
 Format the report in clear markdown with proper structure and include source references where appropriate.
 
 <Citation Rules>
+- CRITICAL URL RULES - MUST FOLLOW:
+  * You MUST use the exact URL from the \`internet_search\` tool's response. The URL is in the \`url\` field of each result in the \`results\` array.
+  * NEVER modify, simplify, shorten, or fabricate URLs. You must copy the URL exactly as it appears in the search tool's response.
+  * NEVER construct URLs yourself or guess URLs based on titles or content. Only use URLs that come directly from the \`internet_search\` tool.
+  * The URL in your citation must be character-for-character identical to the URL in the search tool's response.
+  * If you reference a source, you must have obtained its URL from a search result. Do not create citations for sources you did not find through the search tool.
+
 - Assign each unique URL a single citation number in your text
 - End with ### Sources (or ### 资料来源 if writing in Chinese) that lists each source with corresponding numbers
 - IMPORTANT: Number sources sequentially without gaps (1,2,3,4...) in the final list regardless of which sources you choose
