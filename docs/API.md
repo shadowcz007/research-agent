@@ -1,6 +1,6 @@
 @DEEPAGENTS_TOOL_GUIDE.md @research-agent.ts 
 
-要在 search工具里 增加 2个 并发请求的 ：
+要在 search工具里 增加 2个 并发请求的，三个api要并发 tavily、NewsAgent、dify ：
 
 # NewsAgent API:
 
