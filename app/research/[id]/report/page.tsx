@@ -246,7 +246,7 @@ export default function ReportPage() {
                         // 自定义链接组件，美化引用链接
                         a: ({ node, href, children, ...props }) => {
                           const isCitation = href?.startsWith('#citation-');
-                          if (isCitation) {
+                          if (isCitation && href) {
                             const citationId = href.replace('#', '');
                             const citationNum = parseInt(citationId.replace('citation-', ''), 10);
                             const citationInfo = citations.get(citationNum);
