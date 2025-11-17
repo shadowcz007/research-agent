@@ -34,8 +34,6 @@ export class FileStorage {
     await this.ensureReportsDir();
     const reportDir = path.join(this.reportsDir, id);
     await fs.mkdir(reportDir, { recursive: true });
-    const versionsDir = path.join(reportDir, "versions");
-    await fs.mkdir(versionsDir, { recursive: true });
     return reportDir;
   }
 
@@ -45,13 +43,8 @@ export class FileStorage {
     await fs.writeFile(questionPath, question, "utf-8");
   }
 
-  async saveReport(id: string, content: string, version?: string): Promise<void> {
+  async saveReport(id: string, content: string): Promise<void> {
     const reportDir = await this.createReportDir(id);
-    if (version) {
-      const versionPath = path.join(reportDir, "versions", `v${version}.md`);
-      await fs.writeFile(versionPath, content, "utf-8");
-      console.log(`[FileStorage] 保存版本报告: ${versionPath} (内容长度: ${content.length} 字符)`);
-    }
     const reportPath = path.join(reportDir, "final_report.md");
     console.log(`[FileStorage] 保存最终报告:`);
     console.log(`  - Report ID: ${id}`);
@@ -86,36 +79,6 @@ export class FileStorage {
     }
   }
 
-  async getReportVersions(id: string): Promise<Array<{ version: string; date: string }>> {
-    try {
-      const versionsDir = path.join(this.reportsDir, id, "versions");
-      const files = await fs.readdir(versionsDir);
-      const versions = await Promise.all(
-        files
-          .filter((f) => f.endsWith(".md"))
-          .map(async (file) => {
-            const filePath = path.join(versionsDir, file);
-            const stats = await fs.stat(filePath);
-            return {
-              version: file.replace(".md", ""),
-              date: stats.mtime.toISOString(),
-            };
-          })
-      );
-      return versions.sort((a, b) => b.date.localeCompare(a.date));
-    } catch {
-      return [];
-    }
-  }
-
-  async getVersionReport(id: string, version: string): Promise<string | null> {
-    try {
-      const versionPath = path.join(this.reportsDir, id, "versions", `${version}.md`);
-      return await fs.readFile(versionPath, "utf-8");
-    } catch {
-      return null;
-    }
-  }
 
   async listReports(): Promise<ReportMetadata[]> {
     await this.ensureReportsDir();

@@ -9,14 +9,8 @@ export async function GET(
     const { id } = params;
     const { searchParams } = new URL(request.url);
     const download = searchParams.get("download") === "true";
-    const version = searchParams.get("version");
 
-    let content: string | null;
-    if (version) {
-      content = await fileStorage.getVersionReport(id, version);
-    } else {
-      content = await fileStorage.getReport(id);
-    }
+    const content = await fileStorage.getReport(id);
 
     if (!content) {
       return NextResponse.json({ error: "报告不存在" }, { status: 404 });
@@ -32,13 +26,11 @@ export async function GET(
     }
 
     const question = await fileStorage.getQuestion(id);
-    const versions = await fileStorage.getReportVersions(id);
 
     return NextResponse.json({
       id,
       question,
       content,
-      versions,
     });
   } catch (error) {
     return NextResponse.json(

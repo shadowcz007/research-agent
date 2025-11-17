@@ -13,7 +13,6 @@ interface ReportData {
   id: string;
   question: string;
   content: string;
-  versions: Array<{ version: string; date: string }>;
 }
 
 export default function ReportPage() {
