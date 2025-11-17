@@ -240,6 +240,11 @@ export class AgentExecutorService {
                   message = {
                     query: parsedInput.query,
                   };
+                } else if (toolName === "write_file") {
+                  message = {
+                    file_path: parsedInput.file_path,
+                    content: parsedInput.content,
+                  };
                 }
               } catch (parseError) {
                 console.warn(`[Executor] 解析工具输入失败 (${toolName}):`, parseError);
@@ -258,6 +263,11 @@ export class AgentExecutorService {
               } else if (toolName === "internet_search") {
                 message = {
                   query: toolInput.query,
+                };
+              } else if (toolName === "write_file") {
+                message = {
+                  file_path: toolInput.file_path,
+                  content: toolInput.content,
                 };
               }
             }
