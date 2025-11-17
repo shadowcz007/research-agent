@@ -201,8 +201,8 @@ export class FileStorage {
   }
 
   async deleteReport(id: string): Promise<void> {
+    const reportPath = path.join(this.reportsDir, id, "final_report.md");
     try {
-      const reportPath = path.join(this.reportsDir, id, "final_report.md");
       await fs.unlink(reportPath);
       console.log(`[FileStorage] ✅ 已删除最终报告: ${reportPath}`);
     } catch (error) {
@@ -212,6 +212,22 @@ export class FileStorage {
         throw error;
       } else {
         console.log(`[FileStorage] 最终报告不存在，无需删除: ${reportPath}`);
+      }
+    }
+  }
+
+  async deleteAgentRawResult(id: string): Promise<void> {
+    const resultPath = path.join(this.reportsDir, id, "agent_raw_result.json");
+    try {
+      await fs.unlink(resultPath);
+      console.log(`[FileStorage] ✅ 已删除 Agent 原始结果: ${resultPath}`);
+    } catch (error) {
+      // 如果文件不存在，不抛出错误
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        console.error(`[FileStorage] ❌ 删除 Agent 原始结果失败:`, error instanceof Error ? error.message : error);
+        throw error;
+      } else {
+        console.log(`[FileStorage] Agent 原始结果不存在，无需删除: ${resultPath}`);
       }
     }
   }

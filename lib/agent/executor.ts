@@ -133,6 +133,14 @@ export class AgentExecutorService {
       // 为此报告创建独立文件系统的 agent
       const agentInstance = createAgentForReport(reportId);
 
+      // 创建 AbortController 用于取消 LLM 请求
+      const abortController = new AbortController();
+      let task = activeTasks.get(reportId);
+      if (task) {
+        task.abortController = abortController;
+        console.log(`[Executor] 已创建 AbortController 并保存到任务中`);
+      }
+
       // Execute agent using deepagents with streamEvents
       console.log(`[Executor] 开始调用 agent.streamEvents`);
       
@@ -153,18 +161,19 @@ export class AgentExecutorService {
           {
             version: "v2",
             recursionLimit: 100,
+            signal: abortController.signal,  // 传递 signal 以支持取消
           }
         );
 
         for await (const event of stream) {
-          // 检查任务是否被取消
+          // 检查任务是否被取消（检查 cancelled 标志或 signal 是否已中止）
           const currentTask = activeTasks.get(reportId);
-          if (currentTask?.cancelled) {
+          if (currentTask?.cancelled || abortController.signal.aborted) {
             console.log(`[Executor] 任务 ${reportId} 已被取消，停止执行`);
             if (onProgress) {
               onProgress({
                 stage: "已停止",
-                progress: currentTask.progress,
+                progress: currentTask?.progress || 0,
                 log: "任务已被用户停止",
               });
             }
@@ -187,7 +196,7 @@ export class AgentExecutorService {
             }
             
             // Record tool call
-            const task = activeTasks.get(reportId);
+            task = activeTasks.get(reportId);
             if (task) {
               if (!task.toolCalls) task.toolCalls = [];
               task.toolCalls.push({
@@ -223,7 +232,7 @@ export class AgentExecutorService {
             currentProgress = Math.min(currentProgress + 5, 80);
             
             // Update tool call with output
-            const task = activeTasks.get(reportId);
+            task = activeTasks.get(reportId);
             if (task && task.toolCalls) {
               const lastCall = task.toolCalls[task.toolCalls.length - 1];
               if (lastCall && lastCall.name === toolName) {
@@ -487,7 +496,7 @@ export class AgentExecutorService {
               finalResult = event.data.output;
               
               // 提取 todos 到 task（仅在 task.todos 为空时更新，避免覆盖）
-              const task = activeTasks.get(reportId);
+              task = activeTasks.get(reportId);
               if (finalResult.todos && task) {
                 // 只在 task.todos 为空或未定义时更新
                 if (!task.todos || task.todos.length === 0) {
@@ -508,7 +517,20 @@ export class AgentExecutorService {
             await this.saveAgentState(reportId, accumulatedMessages);
           }
         }
-      } catch (streamError) {
+      } catch (streamError: any) {
+        // 如果是取消操作导致的错误，不抛出异常
+        if (streamError?.name === 'AbortError' || abortController.signal.aborted) {
+          console.log(`[Executor] 任务 ${reportId} 已被取消（AbortError）`);
+          const currentTask = activeTasks.get(reportId);
+          if (onProgress && currentTask) {
+            onProgress({
+              stage: "已停止",
+              progress: currentTask.progress,
+              log: "任务已被用户停止",
+            });
+          }
+          return; // 优雅退出，不抛出错误
+        }
         console.error(`[Executor] StreamEvents错误:`, streamError);
         throw streamError;
       }
@@ -524,7 +546,7 @@ export class AgentExecutorService {
       }
 
       // 添加任务状态到结果中
-      const task = activeTasks.get(reportId);
+      task = activeTasks.get(reportId);
       if (task) {
         // 标记最终状态
         task.progress = 100;

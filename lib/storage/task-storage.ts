@@ -32,6 +32,8 @@ export interface Task {
   finalStage?: string;
   // 新增：取消标志
   cancelled?: boolean;
+  // 新增：AbortController 用于取消 LLM 请求
+  abortController?: AbortController;
 }
 
 // Todo 统计接口

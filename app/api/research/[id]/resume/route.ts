@@ -28,7 +28,7 @@ export async function POST(
       }
     }
 
-    // 如果重新开始，清除现有任务状态并删除 final_report.md
+    // 如果重新开始，清除现有任务状态并删除 final_report.md 和 agent_raw_result.json
     if (restart) {
       activeTasks.delete(id);
       console.log(`[Resume] 重新开始任务 ${id}，清除现有状态`);
@@ -38,6 +38,14 @@ export async function POST(
         console.log(`[Resume] ✅ 已删除 final_report.md`);
       } catch (error) {
         console.warn(`[Resume] ⚠️ 删除 final_report.md 失败:`, error instanceof Error ? error.message : error);
+        // 不阻止重新开始，继续执行
+      }
+      // 删除 agent_raw_result.json
+      try {
+        await fileStorage.deleteAgentRawResult(id);
+        console.log(`[Resume] ✅ 已删除 agent_raw_result.json`);
+      } catch (error) {
+        console.warn(`[Resume] ⚠️ 删除 agent_raw_result.json 失败:`, error instanceof Error ? error.message : error);
         // 不阻止重新开始，继续执行
       }
     }
@@ -121,12 +129,14 @@ export async function POST(
       files: restoredTask.files,
       toolCalls: restoredTask.toolCalls,
       cancelled: false, // 重置取消标志
+      abortController: undefined, // 重置 AbortController，执行时会创建新的
     } : {
       status: "pending",
       progress: 0,
       stage: "初始化",
       logs: [],
       cancelled: false, // 重置取消标志
+      abortController: undefined, // 重置 AbortController，执行时会创建新的
     };
 
     // 如果恢复了状态，添加恢复日志

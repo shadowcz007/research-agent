@@ -2,10 +2,10 @@ import "dotenv/config";
 import { z } from "zod";
 import { tool } from "@langchain/core/tools";
 import { TavilySearch } from "@langchain/tavily";
-import { ChatOpenAI } from "@langchain/openai";
 import { HumanMessage } from "@langchain/core/messages";
 import { createDeepAgent, type SubAgent, FilesystemBackend } from "deepagents";
 import { progressCallbacks, getCurrentTaskId } from "../storage/task-storage";
+import { createRetryableChatOpenAI } from "../llm";
 import path from "path";
 import fs from "fs/promises";
 
@@ -250,15 +250,20 @@ You have access to a few tools.
 Use this to run an internet search for a given query. You can specify the number of results, the topic, and whether raw content should be included.
 `;
 
-// Create the agent using deepagents
-// Extract configuration to avoid TypeScript type inference depth issues
-const chatModel = new ChatOpenAI({
+// Create the agent using deepagents with retryable ChatOpenAI
+// 使用带指数退避重试机制的 ChatOpenAI 来处理速率限制
+const chatModel = createRetryableChatOpenAI({
   model: process.env.OPENAI_MODEL || "deepseek-ai/DeepSeek-V3.2-Exp",
   apiKey: process.env.OPENAI_API_KEY,
   configuration: {
     baseURL: process.env.OPENAI_BASE_URL || "https://api.siliconflow.cn/v1",
   },
   temperature: 0,
+  retryConfig: {
+    maxRetries: parseInt(process.env.OPENAI_MAX_RETRIES || "5", 10),
+    baseDelay: parseInt(process.env.OPENAI_RETRY_BASE_DELAY || "1000", 10),
+    maxDelay: parseInt(process.env.OPENAI_RETRY_MAX_DELAY || "60000", 10),
+  },
 });
 
 // 为每个报告创建独立文件系统的 agent

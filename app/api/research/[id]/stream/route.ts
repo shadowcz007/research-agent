@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { activeTasks } from "@/lib/storage/task-storage";
+import { activeTasks, type Task } from "@/lib/storage/task-storage";
 import { fileStorage } from "@/lib/storage/file-storage";
 
 export async function GET(
@@ -15,7 +15,37 @@ export async function GET(
   const stream = new ReadableStream({
     async start(controller) {
       const encoder = new TextEncoder();
-      const task = activeTasks.get(id);
+      let task = activeTasks.get(id);
+
+      // 如果任务不在 activeTasks 中，尝试从 agent_raw_result.json 恢复
+      if (!task) {
+        console.log(`[SSE] 任务不在 activeTasks 中，尝试从 agent_raw_result.json 恢复`);
+        try {
+          const savedState = await fileStorage.getAgentRawResult(id);
+          if (savedState && savedState.task) {
+            // 恢复任务状态
+            task = {
+              status: savedState.task.status || "completed",
+              progress: savedState.task.progress ?? (savedState.task.status === "completed" ? 100 : 0),
+              stage: savedState.task.stage || (savedState.task.status === "completed" ? "完成" : "初始化"),
+              logs: savedState.task.logs || [],
+              todos: savedState.task.todos || [],
+              files: savedState.task.files || {},
+              toolCalls: savedState.task.toolCalls || [],
+            };
+            
+            // 如果任务还在进行中，添加到 activeTasks 以便继续监控
+            if (task.status === "processing" || task.status === "pending") {
+              activeTasks.set(id, task);
+              console.log(`[SSE] ✅ 已恢复进行中的任务状态到 activeTasks`);
+            } else {
+              console.log(`[SSE] ✅ 已恢复已完成/失败的任务状态（只读模式）`);
+            }
+          }
+        } catch (error) {
+          console.warn(`[SSE] 恢复任务状态失败:`, error);
+        }
+      }
 
       console.log(`[SSE] 任务存在: ${!!task}`, task ? { status: task.status, progress: task.progress } : null);
 
@@ -66,7 +96,14 @@ export async function GET(
         )
       );
 
-      // Poll for updates
+      // 如果任务已完成或失败，直接关闭连接（不需要轮询）
+      if (task.status === "completed" || task.status === "failed") {
+        console.log(`[SSE] 任务${task.status === "completed" ? "完成" : "失败"}，关闭连接`);
+        controller.close();
+        return;
+      }
+
+      // Poll for updates (仅当任务还在进行中时)
       const interval = setInterval(() => {
         const currentTask = activeTasks.get(id);
         if (!currentTask) {

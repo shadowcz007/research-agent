@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { User, Settings, FileText, ArrowLeft, RotateCcw, Square } from "lucide-react";
+import { User, Settings, FileText, ArrowLeft, RotateCcw, Square, Play } from "lucide-react";
 import { TodosPanel } from "@/components/research/todos-panel";
 import { FilesPanel } from "@/components/research/files-panel";
 import ReactMarkdown from "react-markdown";
@@ -157,7 +157,7 @@ export default function ResearchProgressPage() {
 
       eventSource.onmessage = (event) => {
         try {
-          console.log('[前端] 收到 SSE 消息:', event.data);
+          // console.log('[前端] 收到 SSE 消息:', event.data);
           const data = JSON.parse(event.data);
           console.log('[前端] 解析后的数据:', data);
 
@@ -250,11 +250,66 @@ export default function ResearchProgressPage() {
     }
   }, [progressData]);
 
+  // 处理继续任务
+  const handleResume = async () => {
+    if (isRestarting) return;
+
+    setIsRestarting(true);
+    try {
+      const res = await fetch(`/api/research/${id}/resume`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ restart: false }), // 继续执行，不重新开始
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "继续任务失败");
+      }
+
+      // 重新加载页面以刷新状态
+      window.location.reload();
+    } catch (error) {
+      console.error("继续任务失败:", error);
+      alert(error instanceof Error ? error.message : "继续任务失败，请重试");
+    } finally {
+      setIsRestarting(false);
+    }
+  };
+
   // 处理重新开始（实时模式）
   const handleRestart = async () => {
     if (isRestarting) return;
 
-    if (!confirm("确定要重新开始吗？这将从头开始执行任务。")) {
+    // 先检查任务是否正在运行，如果是，先停止
+    const isTaskRunning = progressData?.status === "processing" || progressData?.status === "pending";
+    
+    if (isTaskRunning) {
+      if (!confirm("任务正在运行中，需要先停止任务才能重新开始。确定要继续吗？")) {
+        return;
+      }
+      
+      // 先停止任务
+      try {
+        const stopRes = await fetch(`/api/research/${id}/stop`, {
+          method: "POST",
+        });
+        
+        if (!stopRes.ok) {
+          const data = await stopRes.json();
+          throw new Error(data.error || "停止任务失败");
+        }
+        
+        // 等待一下确保任务已停止
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } catch (error) {
+        console.error("停止任务失败:", error);
+        alert(error instanceof Error ? error.message : "停止任务失败，请重试");
+        return;
+      }
+    }
+
+    if (!confirm("确定要重新开始吗？这将删除所有进度数据并从头开始执行任务。")) {
       return;
     }
 
@@ -263,7 +318,7 @@ export default function ResearchProgressPage() {
       const res = await fetch(`/api/research/${id}/resume`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ restart: true }), // 传递restart标志，让后端知道要重新开始
+        body: JSON.stringify({ restart: true }), // 传递restart标志，让后端知道要重新开始并删除数据
       });
 
       if (!res.ok) {
@@ -367,24 +422,42 @@ export default function ResearchProgressPage() {
         <div className="flex gap-4 items-center">
           {!isHistoryMode && (
             <>
-              <Button
-                variant="outline"
-                onClick={handleRestart}
-                disabled={isRestarting || isStopping}
-                className="gap-2 bg-slate-800/50 text-slate-200 border-slate-600 hover:bg-slate-700 hover:text-white hover:border-slate-500"
-              >
-                <RotateCcw className="w-4 h-4" />
-                {isRestarting ? "重新开始中..." : "重新开始"}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={handleStop}
-                disabled={isStopping || progressData?.status === "completed" || progressData?.status === "failed"}
-                className="gap-2 bg-red-900/50 text-red-200 border-red-600 hover:bg-red-800 hover:text-white hover:border-red-500"
-              >
-                <Square className="w-4 h-4" />
-                {isStopping ? "停止中..." : "停止任务"}
-              </Button>
+              {/* 如果任务被停止（failed 状态），显示继续按钮 */}
+              {progressData?.status === "failed" && (
+                <Button
+                  variant="outline"
+                  onClick={handleResume}
+                  disabled={isRestarting || isStopping}
+                  className="gap-2 bg-green-900/50 text-green-200 border-green-600 hover:bg-green-800 hover:text-white hover:border-green-500"
+                >
+                  <Play className="w-4 h-4" />
+                  {isRestarting ? "继续中..." : "继续"}
+                </Button>
+              )}
+              {/* 如果任务正在运行或已完成，显示重新开始按钮 */}
+              {progressData?.status !== "failed" && (
+                <Button
+                  variant="outline"
+                  onClick={handleRestart}
+                  disabled={isRestarting || isStopping}
+                  className="gap-2 bg-slate-800/50 text-slate-200 border-slate-600 hover:bg-slate-700 hover:text-white hover:border-slate-500"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  {isRestarting ? "重新开始中..." : "重新开始"}
+                </Button>
+              )}
+              {/* 停止按钮：只在任务正在运行时显示 */}
+              {progressData?.status === "processing" || progressData?.status === "pending" ? (
+                <Button
+                  variant="outline"
+                  onClick={handleStop}
+                  disabled={isStopping}
+                  className="gap-2 bg-red-900/50 text-red-200 border-red-600 hover:bg-red-800 hover:text-white hover:border-red-500"
+                >
+                  <Square className="w-4 h-4" />
+                  {isStopping ? "停止中..." : "停止任务"}
+                </Button>
+              ) : null}
             </>
           )}
           {isHistoryMode && (

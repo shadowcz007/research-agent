@@ -32,6 +32,14 @@ export async function POST(
       message: "任务已被用户停止",
     });
 
+    // 调用 AbortController 来真正取消 LLM 请求
+    if (task.abortController) {
+      task.abortController.abort();
+      console.log(`[Stop] 已调用 AbortController.abort() 取消 LLM 请求`);
+    } else {
+      console.log(`[Stop] 警告: 任务 ${id} 没有 AbortController，可能任务尚未开始执行`);
+    }
+
     console.log(`[Stop] 任务 ${id} 已被停止`);
 
     return NextResponse.json({
@@ -46,4 +54,5 @@ export async function POST(
     );
   }
 }
+
 
