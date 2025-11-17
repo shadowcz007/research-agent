@@ -501,7 +501,7 @@ export default function ResearchProgressPage() {
               </CardHeader>
               <CardContent className="flex-1 overflow-auto">
                 {question ? (
-                  <p className="text-xl text-white font-semibold leading-relaxed">{question}</p>
+                  <p className="text-xl text-white font-semibold leading-relaxed">{question.slice(0, 72)}...</p>
                 ) : (
                   <p className="text-slate-500 text-sm">等待问题加载...</p>
                 )}
@@ -535,12 +535,12 @@ export default function ResearchProgressPage() {
                     </p>
                     <p className="text-sm text-slate-400">任务</p>
                   </div>
-                  <div>
+                  {/* <div>
                     <p className="text-2xl font-bold text-green-400">
                       {Object.keys(progressData?.files || {}).length}
                     </p>
                     <p className="text-sm text-slate-400">文件</p>
-                  </div>
+                  </div> */}
                   <div>
                     <p className="text-2xl font-bold text-purple-400">
                       {progressData?.toolCalls?.length || 0}
