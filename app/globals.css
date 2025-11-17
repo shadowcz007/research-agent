@@ -1,99 +1,102 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
 @layer base {
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
-    --radius: 0.5rem;
-  }
-
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
-  }
+     :root {
+        --background: 0 0% 100%;
+        --foreground: 222.2 84% 4.9%;
+        --card: 0 0% 100%;
+        --card-foreground: 222.2 84% 4.9%;
+        --popover: 0 0% 100%;
+        --popover-foreground: 222.2 84% 4.9%;
+        --primary: 221.2 83.2% 53.3%;
+        --primary-foreground: 210 40% 98%;
+        --secondary: 210 40% 96.1%;
+        --secondary-foreground: 222.2 47.4% 11.2%;
+        --muted: 210 40% 96.1%;
+        --muted-foreground: 215.4 16.3% 46.9%;
+        --accent: 210 40% 96.1%;
+        --accent-foreground: 222.2 47.4% 11.2%;
+        --destructive: 0 84.2% 60.2%;
+        --destructive-foreground: 210 40% 98%;
+        --border: 214.3 31.8% 91.4%;
+        --input: 214.3 31.8% 91.4%;
+        --ring: 221.2 83.2% 53.3%;
+        --radius: 0.5rem;
+    }
+    .dark {
+        --background: 222.2 84% 4.9%;
+        --foreground: 210 40% 98%;
+        --card: 222.2 84% 4.9%;
+        --card-foreground: 210 40% 98%;
+        --popover: 222.2 84% 4.9%;
+        --popover-foreground: 210 40% 98%;
+        --primary: 217.2 91.2% 59.8%;
+        --primary-foreground: 222.2 47.4% 11.2%;
+        --secondary: 217.2 32.6% 17.5%;
+        --secondary-foreground: 210 40% 98%;
+        --muted: 217.2 32.6% 17.5%;
+        --muted-foreground: 215 20.2% 65.1%;
+        --accent: 217.2 32.6% 17.5%;
+        --accent-foreground: 210 40% 98%;
+        --destructive: 0 62.8% 30.6%;
+        --destructive-foreground: 210 40% 98%;
+        --border: 217.2 32.6% 17.5%;
+        --input: 217.2 32.6% 17.5%;
+        --ring: 224.3 76.3% 48%;
+    }
 }
 
 @layer base {
-  * {
-    @apply border-border;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
+    * {
+        @apply border-border;
+    }
+    body {
+        @apply bg-background text-foreground;
+    }
 }
+
 
 /* Markdown styles */
+
 .prose {
-  @apply text-slate-700;
+    @apply text-slate-700;
 }
 
 .prose h1 {
-  @apply text-3xl font-bold mt-8 mb-4 text-slate-900;
+    @apply text-3xl font-bold mt-8 mb-4 text-slate-900;
 }
 
 .prose h2 {
-  @apply text-2xl font-semibold mt-6 mb-3 text-slate-900;
+    @apply text-2xl font-semibold mt-6 mb-3 text-slate-900;
 }
 
 .prose h3 {
-  @apply text-xl font-semibold mt-4 mb-2 text-slate-900;
+    @apply text-xl font-semibold mt-4 mb-2 text-slate-900;
 }
 
 .prose p {
-  @apply mb-4 leading-7;
+    @apply mb-4 leading-7;
 }
 
 .prose ul {
-  @apply list-disc list-inside mb-4 space-y-2;
+    @apply list-disc list-inside mb-4 space-y-2;
 }
 
 .prose ol {
-  @apply list-decimal list-inside mb-4 space-y-2;
+    @apply list-decimal list-inside mb-4 space-y-2;
 }
 
+
 /* Dark theme markdown styles for activity logs */
+
 .prose-invert {
-  color: rgb(203, 213, 225) !important; /* slate-300 */
+    color: rgb(203, 213, 225) !important;
+    /* slate-300 */
 }
 
 .prose-invert * {
-  color: inherit;
+    color: inherit;
 }
 
 .prose-invert h1,
@@ -102,131 +105,212 @@
 .prose-invert h4,
 .prose-invert h5,
 .prose-invert h6 {
-  color: rgb(226, 232, 240) !important; /* slate-200 */
-  font-weight: 600;
-  margin-top: 1rem;
-  margin-bottom: 0.5rem;
+    color: rgb(226, 232, 240) !important;
+    /* slate-200 */
+    font-weight: 600;
+    margin-top: 1rem;
+    margin-bottom: 0.5rem;
 }
 
 .prose-invert h1 {
-  font-size: 1.875rem;
-  line-height: 2.25rem;
+    font-size: 1.875rem;
+    line-height: 2.25rem;
 }
 
 .prose-invert h2 {
-  font-size: 1.5rem;
-  line-height: 2rem;
+    font-size: 1.5rem;
+    line-height: 2rem;
 }
 
 .prose-invert h3 {
-  font-size: 1.25rem;
-  line-height: 1.75rem;
+    font-size: 1.25rem;
+    line-height: 1.75rem;
 }
 
 .prose-invert p {
-  margin: 0.5rem 0;
-  color: rgb(203, 213, 225) !important; /* slate-300 */
+    margin: 0.5rem 0;
+    color: rgb(203, 213, 225) !important;
+    /* slate-300 */
 }
 
 .prose-invert code {
-  background: rgb(30, 41, 59) !important; /* slate-800 */
-  color: rgb(96, 165, 250) !important; /* blue-400 */
-  padding: 0.2em 0.4em;
-  border-radius: 0.25rem;
-  font-size: 0.875em;
-  font-family: ui-monospace, monospace;
+    background: rgb(30, 41, 59) !important;
+    /* slate-800 */
+    color: rgb(96, 165, 250) !important;
+    /* blue-400 */
+    padding: 0.2em 0.4em;
+    border-radius: 0.25rem;
+    font-size: 0.875em;
+    font-family: ui-monospace, monospace;
 }
 
 .prose-invert pre {
-  background: rgb(15, 23, 42) !important; /* slate-900 */
-  border: 1px solid rgb(51, 65, 85); /* slate-700 */
-  border-radius: 0.5rem;
-  padding: 1rem;
-  overflow-x: auto;
-  color: rgb(226, 232, 240) !important; /* slate-200 */
+    background: rgb(15, 23, 42) !important;
+    /* slate-900 */
+    border: 1px solid rgb(51, 65, 85);
+    /* slate-700 */
+    border-radius: 0.5rem;
+    padding: 1rem;
+    overflow-x: auto;
+    color: rgb(226, 232, 240) !important;
+    /* slate-200 */
 }
 
 .prose-invert pre code {
-  background: transparent !important;
-  padding: 0;
-  color: rgb(226, 232, 240) !important; /* slate-200 */
+    background: transparent !important;
+    padding: 0;
+    color: rgb(226, 232, 240) !important;
+    /* slate-200 */
 }
 
 .prose-invert a {
-  color: rgb(96, 165, 250) !important; /* blue-400 */
-  text-decoration: underline;
+    color: rgb(96, 165, 250) !important;
+    /* blue-400 */
+    text-decoration: underline;
 }
 
 .prose-invert strong {
-  color: rgb(226, 232, 240) !important; /* slate-200 */
-  font-weight: 600;
+    color: rgb(226, 232, 240) !important;
+    /* slate-200 */
+    font-weight: 600;
 }
 
 .prose-invert em {
-  color: rgb(203, 213, 225) !important; /* slate-300 */
+    color: rgb(203, 213, 225) !important;
+    /* slate-300 */
 }
 
-.prose-invert ul, 
+.prose-invert ul,
 .prose-invert ol {
-  margin: 0.5rem 0;
-  padding-left: 1.5rem;
-  color: rgb(203, 213, 225) !important; /* slate-300 */
+    margin: 0.5rem 0;
+    padding-left: 1.5rem;
+    color: rgb(203, 213, 225) !important;
+    /* slate-300 */
 }
 
 .prose-invert li {
-  margin: 0.25rem 0;
-  color: rgb(203, 213, 225) !important; /* slate-300 */
+    margin: 0.25rem 0;
+    color: rgb(203, 213, 225) !important;
+    /* slate-300 */
 }
 
 .prose-invert blockquote {
-  border-left: 4px solid rgb(59, 130, 246); /* blue-500 */
-  padding-left: 1rem;
-  margin: 1rem 0;
-  font-style: italic;
-  color: rgb(203, 213, 225) !important; /* slate-300 */
+    border-left: 4px solid rgb(59, 130, 246);
+    /* blue-500 */
+    padding-left: 1rem;
+    margin: 1rem 0;
+    font-style: italic;
+    color: rgb(203, 213, 225) !important;
+    /* slate-300 */
 }
 
 .prose-invert table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 1rem 0;
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
 }
 
 .prose-invert th,
 .prose-invert td {
-  border: 1px solid rgb(51, 65, 85); /* slate-700 */
-  padding: 0.5rem;
-  color: rgb(203, 213, 225) !important; /* slate-300 */
+    border: 1px solid rgb(51, 65, 85);
+    /* slate-700 */
+    padding: 0.5rem;
+    color: rgb(203, 213, 225) !important;
+    /* slate-300 */
 }
 
 .prose-invert th {
-  background: rgb(30, 41, 59); /* slate-800 */
-  color: rgb(226, 232, 240) !important; /* slate-200 */
-  font-weight: 600;
+    background: rgb(30, 41, 59);
+    /* slate-800 */
+    color: rgb(226, 232, 240) !important;
+    /* slate-200 */
+    font-weight: 600;
 }
 
 .prose-invert hr {
-  border-color: rgb(51, 65, 85); /* slate-700 */
-  margin: 1.5rem 0;
+    border-color: rgb(51, 65, 85);
+    /* slate-700 */
+    margin: 1.5rem 0;
 }
 
 .prose li {
-  @apply mb-1;
+    @apply mb-1;
 }
 
 .prose a {
-  @apply text-blue-600 hover:text-blue-800 underline;
+    @apply text-blue-600 underline;
+    &:hover {
+        @apply text-blue-800;
+    }
 }
 
 .prose code {
-  @apply bg-slate-100 px-1 py-0.5 rounded text-sm font-mono;
+    @apply bg-slate-100 px-1 py-0.5 rounded text-sm font-mono;
 }
 
 .prose pre {
-  @apply bg-slate-900 text-slate-100 p-4 rounded-lg overflow-x-auto mb-4;
+    @apply bg-slate-900 text-slate-100 p-4 rounded-lg overflow-x-auto mb-4;
 }
 
 .prose blockquote {
-  @apply border-l-4 border-blue-500 pl-4 italic my-4;
+    @apply border-l-4 border-blue-500 pl-4 italic my-4;
 }
 
+
+/* 引用链接样式 */
+
+.citation-link {
+    color: #2563eb;
+    text-decoration: none;
+    font-size: 0.75em;
+    vertical-align: super;
+    margin-left: 2px;
+    font-weight: 500;
+    transition: color 0.2s;
+    cursor: pointer;
+}
+
+.citation-link:hover {
+    color: #1e40af;
+    text-decoration: underline;
+}
+
+
+/* 参考文献列表项样式 */
+
+.prose .citation-item {
+    scroll-margin-top: 5rem;
+    padding-left: 0.5rem;
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #e2e8f0;
+    transition: background-color 0.3s;
+}
+
+.prose .citation-item:last-child {
+    border-bottom: none;
+}
+
+.prose .citation-item a {
+    display: flex;
+    overflow: hidden;
+}
+
+
+/* 高亮效果 */
+
+.prose .citation-item.citation-highlight {
+    background-color: #fef3c7;
+    padding: 0.5rem;
+    border-radius: 0.25rem;
+    animation: highlight-fade 2s ease-out;
+}
+
+@keyframes highlight-fade {
+    0% {
+        background-color: #fef3c7;
+    }
+    100% {
+        background-color: transparent;
+    }
+}
