@@ -163,10 +163,14 @@ export async function GET(
     }
 
     // 从 progress_log.json 生成 logs 数组
-    const logs: Array<{ time: string; message: string }> = progressLogs.map((logEntry) => {
+    const logs: Array<{ time: string; message: string; payload?: any }> = progressLogs.map((logEntry) => {
       const timestamp = new Date(logEntry.timestamp).toLocaleTimeString("zh-CN");
       const message = logEntry.payload.log || "";
-      return { time: timestamp, message };
+      return { 
+        time: timestamp, 
+        message,
+        payload: logEntry.payload, // 包含完整的 payload，包括 message 字段
+      };
     });
 
     // 如果 logs 为空，至少添加一个提示

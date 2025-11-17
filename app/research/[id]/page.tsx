@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { User, Settings, FileText, ArrowLeft, RotateCcw, Square, Play } from "lucide-react";
 import { TodosPanel } from "@/components/research/todos-panel";
 import { FilesPanel } from "@/components/research/files-panel";
+import { ToolMessageDisplay } from "@/components/research/tool-message-display";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -23,7 +24,14 @@ interface ProgressData {
   status: "pending" | "processing" | "completed" | "failed";
   progress: number;
   stage: string;
-  logs: Array<{ time: string; message: string }>;
+  logs: Array<{ 
+    time: string; 
+    message: string; 
+    payload?: { 
+      stage?: string; 
+      message?: any;
+    } 
+  }>;
   todos?: Todo[];
   files?: Record<string, { size: number; modified_at: string; path: string }>;
   toolCalls?: Array<{ name: string; timestamp: string; args: any; output?: any }>;
@@ -577,18 +585,43 @@ export default function ResearchProgressPage() {
               <CardContent className="flex-1 min-h-0 p-6 pt-0">
                 <ScrollArea className="h-full">
                   <div className="space-y-4 pr-4">
-                    {progressData?.logs?.map((log, index) => (
-                      <div key={index} className="flex gap-4 text-sm">
-                        <span className="text-slate-500 font-mono min-w-[80px] flex-shrink-0">
-                          {log.time}
-                        </span>
-                        <div className="flex-1 min-w-0 prose prose-sm prose-invert max-w-none overflow-x-auto">
-                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                            {log.message}
-                          </ReactMarkdown>
+                    {progressData?.logs?.map((log, index) => {
+                      // 检查是否有增强的 message 信息
+                      const hasToolMessage = log.payload?.message && log.payload?.stage;
+                      const toolName = log.payload?.stage
+                        ? log.payload!.stage.replace("工具调用: ", "")
+                        : null;
+                      
+                      return (
+                        <div key={index} className="flex gap-4 text-sm">
+                          <span className="text-slate-500 font-mono min-w-[80px] flex-shrink-0">
+                            {log.time}
+                          </span>
+                          <div className="flex-1 min-w-0 prose prose-sm prose-invert max-w-none overflow-x-auto">
+                            {/* 如果有工具消息，显示增强的 UI */}
+                            {hasToolMessage && toolName && log.payload && (
+                              <div className="space-y-2">
+                                <div className="text-slate-400 text-xs mb-2">
+                                  {log.message}
+                                </div>
+                                <div className="mt-2 p-3 rounded-lg bg-slate-900/50 border border-slate-700/30">
+                                  <ToolMessageDisplay 
+                                    toolName={toolName} 
+                                    message={log.payload.message} 
+                                  />
+                                </div>
+                              </div>
+                            )}
+                            {/* 如果没有工具消息，显示原有的 markdown 文本 */}
+                            {!hasToolMessage && (
+                              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                {log.message}
+                              </ReactMarkdown>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                     {(!progressData?.logs || progressData.logs.length === 0) && (
                       <p className="text-slate-500">
                         {isHistoryMode ? "暂无日志记录" : "等待活动日志..."}

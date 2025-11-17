@@ -139,8 +139,7 @@ export default function ReportPage() {
                 </CardTitle>
                 <div className="flex items-center gap-4 text-sm text-slate-600 mt-4">
                   <span>{new Date().toLocaleDateString("zh-CN")}</span>
-                  <Separator orientation="vertical" className="h-4" />
-                  <span>Authored by: Research Agent v2.1</span>
+                  <Separator orientation="vertical" className="h-4" /> 
                 </div>
                 <div className="mt-4 flex gap-2">
                   <Button

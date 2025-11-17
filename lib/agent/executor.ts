@@ -90,15 +90,26 @@ export class AgentExecutorService {
   // 记录进度事件到 progress_log.json 并调用 onProgress 回调
   private async logProgressEvent(
     reportId: string,
-    progressData: { stage: string; progress: number; log: string },
+    progressData: { stage: string; progress: number; log: string; message?: any },
     rawData?: any
   ): Promise<void> {
     try {
+      // 处理 rawData，确保包含 event 字段
+      let processedRawData = rawData;
+      if (rawData && !rawData.event && rawData.name) {
+        // 如果 rawData 有 name 但没有 event，尝试从上下文推断
+        // 通常 on_tool_start 事件会有 name 字段
+        processedRawData = {
+          ...rawData,
+          event: "on_tool_start", // 默认值，如果确实没有则保持原样
+        };
+      }
+
       // 创建带时间戳的日志条目
       const logEntry = {
         timestamp: new Date().toISOString(),
         payload: progressData,
-        ...(rawData && { rawData }),
+        ...(processedRawData && { rawData: processedRawData }),
       };
 
       // 立即追加到文件
@@ -207,11 +218,62 @@ export class AgentExecutorService {
             const toolName = event.name;
             console.log(`[Executor] Tool开始: ${toolName}`);
             
+            // 解析工具输入，提取 message 信息
+            let message: any = undefined;
+            const toolInput = event.data?.input?.input;
+            
+            if (toolInput && typeof toolInput === 'string') {
+              try {
+                const parsedInput = JSON.parse(toolInput);
+                
+                // 根据工具类型提取不同的信息
+                if (toolName === "task") {
+                  message = {
+                    subagent_type: parsedInput.subagent_type,
+                    description: parsedInput.description,
+                  };
+                } else if (toolName === "write_todos") {
+                  message = {
+                    todos: parsedInput.todos || [],
+                  };
+                } else if (toolName === "internet_search") {
+                  message = {
+                    query: parsedInput.query,
+                  };
+                }
+              } catch (parseError) {
+                console.warn(`[Executor] 解析工具输入失败 (${toolName}):`, parseError);
+              }
+            } else if (toolInput && typeof toolInput === 'object') {
+              // 如果已经是对象，直接使用
+              if (toolName === "task") {
+                message = {
+                  subagent_type: toolInput.subagent_type,
+                  description: toolInput.description,
+                };
+              } else if (toolName === "write_todos") {
+                message = {
+                  todos: toolInput.todos || [],
+                };
+              } else if (toolName === "internet_search") {
+                message = {
+                  query: toolInput.query,
+                };
+              }
+            }
+            
+            // 确保 event 对象包含 event 字段
+            const eventWithType = {
+              ...event,
+              event: event.event || "on_tool_start",
+            };
+            
             await this.logProgressEvent(reportId, {
               stage: `工具调用: ${toolName}`,
               progress: 0,
               log: `正在调用工具: ${toolName}...`,
-            }, event);
+              ...(message && { message }),
+            }, eventWithType);
             
             // Record tool call
             task = activeTasks.get(reportId);
