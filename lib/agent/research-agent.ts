@@ -11,6 +11,19 @@ import fs from "fs/promises";
 
 type Topic = "general" | "news" | "finance";
 
+// 统一的结果格式
+interface UnifiedSearchResult {
+  content: string;
+  title: string;
+  url: string;
+  from: "tavily" | "newsagent" | "dify";
+}
+
+interface UnifiedSearchResponse {
+  query: string;
+  results: UnifiedSearchResult[];
+}
+
 // Helper function to send progress update
 function sendProgressUpdate(
   stage: string,
@@ -23,6 +36,171 @@ function sendProgressUpdate(
     if (callback) {
       callback({ stage, progress, log });
     }
+  }
+}
+
+// 调用 Tavily API
+async function callTavilyAPI(
+  query: string,
+  maxResults: number,
+  topic: Topic,
+  includeRawContent: boolean
+): Promise<UnifiedSearchResult[]> {
+  try {
+    const tavilySearch = new TavilySearch({
+      maxResults,
+      tavilyApiKey: process.env.TAVILY_API_KEY,
+      includeRawContent,
+      topic,
+      searchDepth: 'advanced',
+      chunksPerSource: 5
+    });
+
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore - Type instantiation is excessively deep and possibly infinite.
+    const tavilyResponse = await tavilySearch._call({ query });
+
+    // 解析 Tavily 响应
+    const results: UnifiedSearchResult[] = [];
+    let tavilyResults: any[] = [];
+
+    if (Array.isArray(tavilyResponse)) {
+      tavilyResults = tavilyResponse;
+    } else if (tavilyResponse && 'results' in tavilyResponse && Array.isArray(tavilyResponse.results)) {
+      tavilyResults = tavilyResponse.results;
+    }
+
+    for (const item of tavilyResults) {
+      if (item.url && item.title && item.content) {
+        results.push({
+          content: item.content || '',
+          title: item.title || '',
+          url: item.url || '',
+          from: 'tavily'
+        });
+      }
+    }
+
+    return results;
+  } catch (error) {
+    console.error('Tavily API 调用失败:', error);
+    return [];
+  }
+}
+
+// 调用 NewsAgent API
+async function callNewsAgentAPI(query: string): Promise<UnifiedSearchResult[]> {
+  const newsAgentUrl = process.env.NEWSAGENT_API_URL || 'http://localhost:3000/api/chat';
+  const newsAgentApiKey = process.env.NEWSAGENT_API_KEY || 'news_0764aef10d524d4a05b1cd7ad968b2a4';
+  const timeout = 30000; // 30秒超时
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+    const response = await fetch(newsAgentUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': newsAgentApiKey
+      },
+      body: JSON.stringify({ message: query }),
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      throw new Error(`NewsAgent API 返回错误: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    // 解析 NewsAgent 响应
+    const results: UnifiedSearchResult[] = [];
+    if (data.sources && Array.isArray(data.sources)) {
+      for (const source of data.sources) {
+        if (source.url && source.title) {
+          results.push({
+            content: source.content || '',
+            title: source.title || '',
+            url: source.url || '',
+            from: 'newsagent'
+          });
+        }
+      }
+    }
+
+    return results;
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.error('NewsAgent API 请求超时');
+    } else {
+      console.error('NewsAgent API 调用失败:', error);
+    }
+    return [];
+  }
+}
+
+// 调用 Dify API
+async function callDifyAPI(query: string): Promise<UnifiedSearchResult[]> {
+  const difyDatasetId = process.env.DIFY_DATASET_ID || '8cd43f69-8d10-4187-a6f6-3371f5067a0d';
+  const difyToken = process.env.DIFY_TOKEN || 'dataset-kQrj2zG3jiMJfRKqu2rYCVzn';
+  const difyUrl = `https://api.dify.ai/v1/datasets/${difyDatasetId}/retrieve`;
+  const timeout = 30000; // 30秒超时
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+    const response = await fetch(difyUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${difyToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        query: query,
+        retrieval_model: {}
+      }),
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      throw new Error(`Dify API 返回错误: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    // 解析 Dify 响应，只保留 tokens > 200 的 segments
+    const results: UnifiedSearchResult[] = [];
+    if (data.records && Array.isArray(data.records)) {
+      for (const record of data.records) {
+        if (record.segment) {
+          const segment = record.segment;
+          // 只保留 tokens > 200 的 segments
+          if (segment.tokens && segment.tokens > 200 && segment.content) {
+            results.push({
+              content: segment.content || '',
+              title: segment.document?.name || '',
+              url: segment.document_id || '',
+              from: 'dify'
+            });
+          }
+        }
+      }
+    }
+
+    return results;
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.error('Dify API 请求超时');
+    } else {
+      console.error('Dify API 调用失败:', error);
+    }
+    return [];
   }
 }
 
@@ -43,47 +221,82 @@ export const internetSearch = tool(
     sendProgressUpdate(
       "搜索资料",
       20,
-      `正在使用 Tavily 搜索: "${query}"...`
+      `正在并发搜索: "${query}"...`
     );
 
     try {
-      const tavilySearch = new TavilySearch({
-        maxResults,
-        tavilyApiKey: process.env.TAVILY_API_KEY,
-        includeRawContent,
-        topic,
-        searchDepth:'advanced', //提高准确率
-        chunksPerSource:5
-      });
-
-      // Send progress: 请求已发送
+      // 并发调用三个 API
       sendProgressUpdate(
         "搜索资料",
         25,
-        `搜索请求已发送，等待 Tavily API 响应...`
+        `并发请求已发送，等待 API 响应...`
       );
 
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore - Type instantiation is excessively deep and possibly infinite.
-      const tavilyResponse = await tavilySearch._call({ query });
+      const [tavilyResults, newsAgentResults, difyResults] = await Promise.allSettled([
+        callTavilyAPI(query, maxResults, topic, includeRawContent),
+        callNewsAgentAPI(query),
+        callDifyAPI(query)
+      ]);
 
-      // Send progress: 搜索完成
-      const resultCount = Array.isArray(tavilyResponse)
-        ? tavilyResponse.length
-        : ('results' in tavilyResponse ? tavilyResponse.results?.length || 0 : 0);
+      // 收集所有结果
+      const allResults: UnifiedSearchResult[] = [];
 
-      sendProgressUpdate(
-        "搜索资料",
-        30,
-        `搜索完成，找到 ${resultCount} 条结果`
-      );
-      if (process.env.NODE_ENV === 'development') {
-        // temp 文件夹保存TavilySearch结果
-        fs.writeFile(`temp/${query}_tavily_search_result.json`, JSON.stringify(tavilyResponse, null, 2));
-
+      if (tavilyResults.status === 'fulfilled') {
+        allResults.push(...tavilyResults.value);
+        // sendProgressUpdate(
+        //   "搜索资料",
+        //   30,
+        //   `Tavily 完成: ${tavilyResults.value.length} 条结果`
+        // );
+      } else {
+        console.error('Tavily 搜索失败:', tavilyResults.reason);
       }
 
-      return tavilyResponse;
+      if (newsAgentResults.status === 'fulfilled') {
+        allResults.push(...newsAgentResults.value);
+        // sendProgressUpdate(
+        //   "搜索资料",
+        //   35,
+        //   `NewsAgent 完成: ${newsAgentResults.value.length} 条结果`
+        // );
+      } else {
+        console.error('NewsAgent 搜索失败:', newsAgentResults.reason);
+      }
+
+      if (difyResults.status === 'fulfilled') {
+        allResults.push(...difyResults.value);
+        // sendProgressUpdate(
+        //   "搜索资料",
+        //   40,
+        //   `Dify 完成: ${difyResults.value.length} 条结果`
+        // );
+      } else {
+        console.error('Dify 搜索失败:', difyResults.reason);
+      }
+
+      // 构建统一响应格式
+      const unifiedResponse: UnifiedSearchResponse = {
+        query: query,
+        results: allResults
+      };
+
+      // Send progress: 搜索完成
+      sendProgressUpdate(
+        "搜索资料",
+        50,
+        `搜索完成，共找到 ${allResults.length} 条结果`
+      );
+
+      // 开发环境下保存结果
+      if (process.env.NODE_ENV === 'development') {
+        const safeQuery = query.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_');
+        await fs.writeFile(
+          `temp/${safeQuery}_unified_search_result.json`,
+          JSON.stringify(unifiedResponse, null, 2)
+        );
+      }
+
+      return unifiedResponse;
     } catch (error) {
       // Send progress: 搜索失败
       sendProgressUpdate(
@@ -91,7 +304,11 @@ export const internetSearch = tool(
         20,
         `搜索失败: ${error instanceof Error ? error.message : "未知错误"}`
       );
-      throw error;
+      // 即使出错也返回空结果，而不是抛出异常
+      return {
+        query: query,
+        results: []
+      };
     }
   },
   {
