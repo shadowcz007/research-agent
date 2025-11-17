@@ -96,6 +96,38 @@ export class AgentExecutorService {
     this.saveStateDebounce.set(reportId, timer);
   }
 
+  // 记录进度事件到 progress_log.json 并调用 onProgress 回调
+  private async logProgressEvent(
+    reportId: string,
+    progressData: { stage: string; progress: number; log: string },
+    rawData?: any
+  ): Promise<void> {
+    try {
+      // 创建带时间戳的日志条目
+      const logEntry = {
+        timestamp: new Date().toISOString(),
+        payload: progressData,
+        ...(rawData && { rawData }),
+      };
+
+      // 立即追加到文件
+      await fileStorage.appendProgressLog(reportId, logEntry);
+
+      // 调用原始的 onProgress 回调（如果存在），确保实时推送不受影响
+      const onProgress = progressCallbacks.get(reportId);
+      if (onProgress) {
+        onProgress(progressData);
+      }
+    } catch (error) {
+      console.error(`[Executor] 记录进度事件失败:`, error);
+      // 即使记录失败，也尝试调用 onProgress 回调，确保实时视图不受影响
+      const onProgress = progressCallbacks.get(reportId);
+      if (onProgress) {
+        onProgress(progressData);
+      }
+    }
+  }
+
   async execute(
     reportId: string,
     question: string,
@@ -117,18 +149,17 @@ export class AgentExecutorService {
       // 确保报告目录存在
       await fileStorage.createReportDir(reportId);
 
+      // 清空进度日志，确保每次执行都从干净的状态开始
+      await fileStorage.clearProgressLog(reportId);
+
       // 不再需要手动保存问题，agent 会自动通过 write_file 保存到 /question.txt
       console.log(`[Executor] Agent 将自动保存问题到 question.txt`);
-      if (onProgress) {
-        console.log(`[Executor] 发送进度: 初始化`);
-        onProgress({ stage: "初始化", progress: 0, log: "准备研究环境" });
-      }
+      console.log(`[Executor] 发送进度: 初始化`);
+      await this.logProgressEvent(reportId, { stage: "初始化", progress: 0, log: "准备研究环境" });
 
       // Execute agent with deepagents
-      if (onProgress) {
-        console.log(`[Executor] 发送进度: 开始研究`);
-        onProgress({ stage: "开始研究", progress: 0, log: "正在搜索相关资料..." });
-      }
+      console.log(`[Executor] 发送进度: 开始研究`);
+      await this.logProgressEvent(reportId, { stage: "开始研究", progress: 0, log: "正在搜索相关资料..." });
 
       // 为此报告创建独立文件系统的 agent
       const agentInstance = createAgentForReport(reportId);
@@ -170,13 +201,11 @@ export class AgentExecutorService {
           const currentTask = activeTasks.get(reportId);
           if (currentTask?.cancelled || abortController.signal.aborted) {
             console.log(`[Executor] 任务 ${reportId} 已被取消，停止执行`);
-            if (onProgress) {
-              onProgress({
-                stage: "已停止",
-                progress: currentTask?.progress || 0,
-                log: "任务已被用户停止",
-              });
-            }
+            await this.logProgressEvent(reportId, {
+              stage: "已停止",
+              progress: currentTask?.progress || 0,
+              log: "任务已被用户停止",
+            });
             break;
           }
 
@@ -187,13 +216,11 @@ export class AgentExecutorService {
             const toolName = event.name;
             console.log(`[Executor] Tool开始: ${toolName}`);
             
-            if (onProgress) {
-              onProgress({
-                stage: `工具调用: ${toolName}`,
-                progress: 0,
-                log: `正在调用工具: ${toolName}...`,
-              });
-            }
+            await this.logProgressEvent(reportId, {
+              stage: `工具调用: ${toolName}`,
+              progress: 0,
+              log: `正在调用工具: ${toolName}...`,
+            }, event);
             
             // Record tool call
             task = activeTasks.get(reportId);
@@ -319,15 +346,13 @@ export class AgentExecutorService {
                       console.log(`[Executor] ✅ 子任务列表已更新到父任务 [${context.parentTodoIndex}] (${todos.length} 项${subNestedCount > 0 ? `, ${subNestedCount} 个嵌套子任务` : ''}):`, JSON.stringify(todos, null, 2));
                       
                       // 触发进度更新
-                      if (onProgress) {
-                        const inProgressSubTodo = todos.find((t: any) => t.status === "in_progress");
-                        if (inProgressSubTodo) {
-                          onProgress({
-                            stage: `${parentTodo.content} > ${inProgressSubTodo.content}`,
-                            progress: 0,
-                            log: `正在执行子任务: ${inProgressSubTodo.content}`,
-                          });
-                        }
+                      const inProgressSubTodo = todos.find((t: any) => t.status === "in_progress");
+                      if (inProgressSubTodo) {
+                        await this.logProgressEvent(reportId, {
+                          stage: `${parentTodo.content} > ${inProgressSubTodo.content}`,
+                          progress: 0,
+                          log: `正在执行子任务: ${inProgressSubTodo.content}`,
+                        });
                       }
                     } else {
                       console.warn(`[Executor] ⚠️ 父任务索引 ${context.parentTodoIndex} 不存在`);
@@ -345,15 +370,13 @@ export class AgentExecutorService {
                     task.todos = todos as Todo[];
                     console.log(`[Executor] ✅ 顶层 Todos 已更新 (${todos.length} 项${hasNestedTodos ? `, 包含嵌套结构` : ''}):`, JSON.stringify(todos, null, 2));
                     
-                    if (onProgress) {
-                      const inProgressTodo = todos.find((t: any) => t.status === "in_progress");
-                      if (inProgressTodo) {
-                        onProgress({
-                          stage: inProgressTodo.content,
-                          progress: 0,
-                          log: `正在执行: ${inProgressTodo.content}`,
-                        });
-                      }
+                    const inProgressTodo = todos.find((t: any) => t.status === "in_progress");
+                    if (inProgressTodo) {
+                      await this.logProgressEvent(reportId, {
+                        stage: inProgressTodo.content,
+                        progress: 0,
+                        log: `正在执行: ${inProgressTodo.content}`,
+                      });
                     }
                   }
                 } else {
@@ -473,14 +496,14 @@ export class AgentExecutorService {
               } catch (e) {
                 console.error(`[Executor] 处理 ${toolName} 失败:`, e);
               }
-            } else if (toolName === "internet_search" && onProgress) {
-              onProgress({
+            } else if (toolName === "internet_search") {
+              await this.logProgressEvent(reportId, {
                 stage: "搜索资料",
                 progress: 0,
                 log: "搜索完成，正在分析结果...",
               });
-            } else if (toolName === "task" && onProgress) {
-              onProgress({
+            } else if (toolName === "task") {
+              await this.logProgressEvent(reportId, {
                 stage: "子任务执行",
                 progress: 0,
                 log: "子agent执行完成",
@@ -522,8 +545,8 @@ export class AgentExecutorService {
         if (streamError?.name === 'AbortError' || abortController.signal.aborted) {
           console.log(`[Executor] 任务 ${reportId} 已被取消（AbortError）`);
           const currentTask = activeTasks.get(reportId);
-          if (onProgress && currentTask) {
-            onProgress({
+          if (currentTask) {
+            await this.logProgressEvent(reportId, {
               stage: "已停止",
               progress: currentTask.progress,
               log: "任务已被用户停止",
@@ -577,10 +600,8 @@ export class AgentExecutorService {
       }
       
       // 提取报告内容
-      if (onProgress) {
-        console.log(`[Executor] 发送进度: 提取报告`);
-        onProgress({ stage: "提取报告", progress: 0, log: "正在检查报告文件..." });
-      }
+      console.log(`[Executor] 发送进度: 提取报告`);
+      await this.logProgressEvent(reportId, { stage: "提取报告", progress: 0, log: "正在检查报告文件..." });
 
       // 检查报告文件是否已通过 FilesystemBackend 创建
       const reportPath = path.join(process.cwd(), "reports", reportId, "final_report.md");
@@ -589,9 +610,7 @@ export class AgentExecutorService {
         const stats = await fs.stat(reportPath);
         console.log(`[Executor] ✅ 报告已通过 FilesystemBackend 直接写入 (大小: ${stats.size} 字节)`);
         
-        if (onProgress) {
-          onProgress({ stage: "撰写报告", progress: 0, log: "报告已保存到文件系统" });
-        }
+        await this.logProgressEvent(reportId, { stage: "撰写报告", progress: 0, log: "报告已保存到文件系统" });
       } catch (error) {
         // 降级方案：从 result.files 提取
         console.warn(`[Executor] ⚠️ 报告文件不存在，尝试降级方案`, error);
@@ -605,27 +624,21 @@ export class AgentExecutorService {
           console.log(`[Executor] 从 result.files 提取报告 (长度: ${reportContent.length} 字符)`);
           await fileStorage.saveReport(reportId, reportContent);
           
-          if (onProgress) {
-            onProgress({ stage: "撰写报告", progress: 0, log: "报告已保存" });
-          }
+          await this.logProgressEvent(reportId, { stage: "撰写报告", progress: 0, log: "报告已保存" });
         } else {
           throw new Error("Agent 未生成报告文件，FilesystemBackend 可能配置失败");
         }
       }
 
-      if (onProgress) {
-        console.log(`[Executor] 发送进度: 完成`);
-        onProgress({ stage: "完成", progress: 0, log: "研究任务已完成" });
-      }
+      console.log(`[Executor] 发送进度: 完成`);
+      await this.logProgressEvent(reportId, { stage: "完成", progress: 0, log: "研究任务已完成" });
     } catch (error) {
       console.error(`[Executor] 任务执行失败:`, error);
-      if (onProgress) {
-        onProgress({
-          stage: "错误",
-          progress: 0,
-          log: `执行失败: ${error instanceof Error ? error.message : "未知错误"}`,
-        });
-      }
+      await this.logProgressEvent(reportId, {
+        stage: "错误",
+        progress: 0,
+        log: `执行失败: ${error instanceof Error ? error.message : "未知错误"}`,
+      });
       throw error;
     } finally {
       // Cleanup: remove progress callback and reset current task ID

@@ -9,18 +9,26 @@ export async function GET(
   try {
     const { id } = params;
 
-    // 获取 agent_raw_result.json
-    const rawResult = await fileStorage.getAgentRawResult(id);
-
-    if (!rawResult) {
-      return NextResponse.json(
-        { error: "执行日志不存在" },
-        { status: 404 }
-      );
+    // 从 progress_log.json 读取日志
+    let progressLogs: Array<{ timestamp: string; payload: any; rawData?: any }> = [];
+    try {
+      progressLogs = await fileStorage.getProgressLog(id);
+    } catch (error) {
+      // 如果 progress_log.json 不存在，返回 404（不提供向后兼容）
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        return NextResponse.json(
+          { error: "执行日志不存在" },
+          { status: 404 }
+        );
+      }
+      throw error;
     }
 
-    // 从 task 字段提取基本信息
-    const task = rawResult.task || {};
+    // 获取 agent_raw_result.json（用于获取其他信息）
+    const rawResult = await fileStorage.getAgentRawResult(id);
+
+    // 从 task 字段提取基本信息（如果 rawResult 不存在，使用默认值）
+    const task = rawResult?.task || {};
     
     // 方案 C: 尝试获取最终状态（如果 task 有 finalProgress/finalStatus）
     let progress = task.finalProgress ?? task.progress ?? 0;
@@ -37,7 +45,7 @@ export async function GET(
       const hasNestedTodos = todos.some((todo: any) => todo.sub_todos && Array.isArray(todo.sub_todos) && todo.sub_todos.length > 0);
       console.log(`[API] 🔍 检查嵌套结构: ${hasNestedTodos ? '有' : '无'}嵌套结构`);
       
-      if (!hasNestedTodos) {
+      if (!hasNestedTodos && rawResult) {
         console.log(`[API] 🔄 task.todos 是平铺结构，尝试从 messages 重建嵌套结构`);
         // 尝试从 messages 中查找 write_todos 调用，重建嵌套结构
         const messages = rawResult.messages || [];
@@ -154,73 +162,11 @@ export async function GET(
       stage = "生成报告中";
     }
 
-    // 从 messages 字段生成 logs 数组
-    const logs: Array<{ time: string; message: string }> = [];
-    const messages = rawResult.messages || [];
-
-    messages.forEach((msg: any, index: number) => {
-      const msgType = msg.id?.[2] || msg.kwargs?.name || "Unknown";
-      let message = "";
-      let timestamp = "";
-
-      // 尝试从消息中提取时间戳
-      if (msg.kwargs?.response_metadata?.timestamp) {
-        timestamp = new Date(msg.kwargs.response_metadata.timestamp).toLocaleTimeString("zh-CN");
-      } else if (msg.kwargs?.id) {
-        // 如果没有时间戳，使用索引生成一个相对时间
-        const baseTime = new Date();
-        baseTime.setSeconds(baseTime.getSeconds() - (messages.length - index) * 2);
-        timestamp = baseTime.toLocaleTimeString("zh-CN");
-      } else {
-        timestamp = new Date().toLocaleTimeString("zh-CN");
-      }
-
-      // 根据消息类型提取内容
-      if (msgType === "HumanMessage") {
-        const content = msg.kwargs?.content || "";
-        if (content) {
-          message = `用户: ${content}`;
-          logs.push({ time: timestamp, message });
-        }
-      } else if (msgType === "AIMessage" || msgType === "AIMessageChunk") {
-        const content = msg.kwargs?.content || "";
-        const toolCalls = msg.kwargs?.tool_calls || msg.kwargs?.additional_kwargs?.tool_calls || [];
-        
-        if (content) {
-          message = `AI: ${content}`;
-          logs.push({ time: timestamp, message });
-        }
-        
-        // 如果有工具调用，也记录
-        if (toolCalls.length > 0) {
-          toolCalls.forEach((toolCall: any) => {
-            const toolName = toolCall.function?.name || toolCall.name || "unknown";
-            const toolArgs = toolCall.function?.arguments || toolCall.args || "{}";
-            let argsStr = "";
-            try {
-              const args = typeof toolArgs === "string" ? JSON.parse(toolArgs) : toolArgs;
-              argsStr = JSON.stringify(args, null, 2);
-            } catch {
-              argsStr = String(toolArgs);
-            }
-            message = `工具调用: ${toolName}(${argsStr.substring(0, 100)}${argsStr.length > 100 ? "..." : ""})`;
-            logs.push({ time: timestamp, message });
-          });
-        }
-      } else if (msgType === "ToolMessage") {
-        const toolName = msg.kwargs?.name || "unknown";
-        const content = msg.kwargs?.content || "";
-        const status = msg.kwargs?.status || "success";
-        
-        // 截断过长的内容
-        let contentStr = content;
-        if (contentStr.length > 200) {
-          contentStr = contentStr.substring(0, 200) + "...";
-        }
-        
-        message = `工具结果 [${toolName}]: ${status === "success" ? "✓" : "✗"} ${contentStr}`;
-        logs.push({ time: timestamp, message });
-      }
+    // 从 progress_log.json 生成 logs 数组
+    const logs: Array<{ time: string; message: string }> = progressLogs.map((logEntry) => {
+      const timestamp = new Date(logEntry.timestamp).toLocaleTimeString("zh-CN");
+      const message = logEntry.payload.log || "";
+      return { time: timestamp, message };
     });
 
     // 如果 logs 为空，至少添加一个提示

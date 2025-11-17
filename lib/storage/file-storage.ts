@@ -194,6 +194,73 @@ export class FileStorage {
       }
     }
   }
+
+  async appendProgressLog(id: string, logEntry: { timestamp: string; payload: any; rawData?: any }): Promise<void> {
+    try {
+      const reportDir = await this.createReportDir(id);
+      const logPath = path.join(reportDir, "progress_log.json");
+      
+      // 读取现有日志（如果存在）
+      let logs: Array<{ timestamp: string; payload: any; rawData?: any }> = [];
+      try {
+        const existingContent = await fs.readFile(logPath, "utf-8");
+        logs = JSON.parse(existingContent);
+        if (!Array.isArray(logs)) {
+          logs = [];
+        }
+      } catch {
+        // 文件不存在或解析失败，使用空数组
+        logs = [];
+      }
+      
+      // 追加新条目
+      logs.push(logEntry);
+      
+      // 原子性写入文件
+      const jsonContent = JSON.stringify(logs, null, 2);
+      await fs.writeFile(logPath, jsonContent, "utf-8");
+      console.log(`[FileStorage] ✅ 已追加进度日志条目到: ${logPath}`);
+    } catch (error) {
+      console.error(`[FileStorage] ❌ 追加进度日志失败:`, error instanceof Error ? error.message : error);
+      throw error;
+    }
+  }
+
+  async getProgressLog(id: string): Promise<Array<{ timestamp: string; payload: any; rawData?: any }>> {
+    try {
+      const logPath = path.join(this.reportsDir, id, "progress_log.json");
+      const content = await fs.readFile(logPath, "utf-8");
+      const logs = JSON.parse(content);
+      if (!Array.isArray(logs)) {
+        console.warn(`[FileStorage] ⚠️ progress_log.json 格式无效，返回空数组`);
+        return [];
+      }
+      console.log(`[FileStorage] ✅ 成功读取进度日志 (${logs.length} 条)`);
+      return logs;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        console.log(`[FileStorage] progress_log.json 不存在: ${id}`);
+        throw error; // 不提供向后兼容，抛出错误
+      }
+      console.error(`[FileStorage] ❌ 读取进度日志失败:`, error instanceof Error ? error.message : error);
+      throw error;
+    }
+  }
+
+  async clearProgressLog(id: string): Promise<void> {
+    try {
+      const reportDir = await this.createReportDir(id);
+      const logPath = path.join(reportDir, "progress_log.json");
+      
+      // 写入空数组
+      const jsonContent = JSON.stringify([], null, 2);
+      await fs.writeFile(logPath, jsonContent, "utf-8");
+      console.log(`[FileStorage] ✅ 已清空进度日志: ${logPath}`);
+    } catch (error) {
+      console.error(`[FileStorage] ❌ 清空进度日志失败:`, error instanceof Error ? error.message : error);
+      throw error;
+    }
+  }
 }
 
 export const fileStorage = new FileStorage();
