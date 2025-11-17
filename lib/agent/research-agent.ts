@@ -233,12 +233,16 @@ Format the report in clear markdown with proper structure and include source ref
 
 <Citation Rules>
 - Assign each unique URL a single citation number in your text
-- End with ### Sources that lists each source with corresponding numbers
+- End with ### Sources (or ### 资料来源 if writing in Chinese) that lists each source with corresponding numbers
 - IMPORTANT: Number sources sequentially without gaps (1,2,3,4...) in the final list regardless of which sources you choose
-- Each source should be a separate line item in a list, so that in markdown it is rendered as a list.
-- Example format:
+- CRITICAL: Each source MUST be on a separate line. Each source entry must be followed by a line break.
+- Use markdown list format with each source as a separate list item
+- Example format (note that each source is on its own line with a line break after it):
   [1] Source Title: URL
+
   [2] Source Title: URL
+
+  [3] Source Title: URL
 - Citations are extremely important. Make sure to include these, and pay a lot of attention to getting these right. Users will often use these citations to look into more information.
 </Citation Rules>
 </report_instructions>
