@@ -23,11 +23,24 @@
 创建 `.env.local` 文件并配置以下变量：
 
 ```env
+# OpenAI/DeepSeek 配置
 OPENAI_API_KEY=your-api-key
 OPENAI_BASE_URL=https://api.siliconflow.cn/v1
 OPENAI_MODEL=deepseek-ai/DeepSeek-V3.2-Exp
+
+# 搜索 API 配置
 TAVILY_API_KEY=your-tavily-api-key
+
+# NewsAgent API 配置（可选）
+NEWSAGENT_API_URL=http://localhost:3000/api/chat
+NEWSAGENT_API_KEY=news_07x1cd7ad968b2a4
+
+# Dify API 配置（可选）
+DIFY_DATASET_ID=8cd43f6xx6-3371f5067a0d
+DIFY_TOKEN=dataset-kQrj2zG3jxfRKqu2rYCVzn
 ```
+
+**注意**: NewsAgent 和 Dify 配置为可选，如果不配置将使用默认值。搜索工具会并发调用 Tavily、NewsAgent 和 Dify 三个 API，统一返回结果格式。
 
 ## 安装和运行
 
