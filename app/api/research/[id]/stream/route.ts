@@ -104,7 +104,7 @@ export async function GET(
       }
 
       // Poll for updates (仅当任务还在进行中时)
-      const interval = setInterval(() => {
+      const interval = setInterval(async () => {
         const currentTask = activeTasks.get(id);
         if (!currentTask) {
           console.log(`[SSE] 任务已不存在，关闭连接`);
@@ -114,6 +114,14 @@ export async function GET(
         }
 
         try {
+          // 每次轮询时重新读取question，确保能获取到agent写入的question.txt
+          let currentQuestion: string | null = null;
+          try {
+            currentQuestion = await fileStorage.getQuestion(id);
+          } catch (error) {
+            console.warn(`[SSE] 轮询时获取question失败:`, error);
+          }
+
           const updateData = {
             status: currentTask.status,
             progress: currentTask.progress,
@@ -122,7 +130,7 @@ export async function GET(
             todos: currentTask.todos || [],
             files: currentTask.files || {},
             toolCalls: currentTask.toolCalls || [],
-            question: question || undefined, // question在开始时已获取，不会改变
+            question: currentQuestion || undefined,
           };
           console.log(`[SSE] 发送更新 [${updateData.status}] ${updateData.progress}% - ${updateData.stage} - 日志数: ${updateData.logs.length} - Todos: ${updateData.todos.length} - 文件: ${Object.keys(updateData.files).length}`);
           
