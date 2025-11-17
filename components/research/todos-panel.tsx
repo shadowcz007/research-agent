@@ -245,7 +245,7 @@ export function TodosPanel({ todos, researchId }: TodosPanelProps) {
     <Card className="bg-slate-800 border-slate-700 h-full flex flex-col overflow-hidden">
       <CardHeader className="flex-shrink-0">
         <CardTitle className="text-sm text-slate-400 uppercase">
-          任务列表 ({todos.length} 顶层, {getTotalTaskCount()} 总计)
+          任务列表 ({getTotalTaskCount()} 总计)
         </CardTitle>
       </CardHeader>
       <CardContent className="flex-1 min-h-0 p-6 pt-0">
