@@ -183,42 +183,49 @@ export default function ResearchProgressPage() {
 
           if (data.status === "completed") {
             console.log('[前端] 任务完成，准备跳转到报告页面');
-            eventSource?.close();
-            // Wait for report to be available before redirecting
-            const checkReport = async () => {
-              let attempts = 0;
-              const maxAttempts = 15;
-              const delay = 1000; // 1 second
+            
+            // 延迟关闭连接，给后端时间完成所有操作（包括文件写入）
+            setTimeout(() => {
+              eventSource?.close();
+            }, 3000);
+            
+            // 等待一段时间后再开始检查报告，确保报告文件已完全写入
+            setTimeout(() => {
+              const checkReport = async () => {
+                let attempts = 0;
+                const maxAttempts = 20; // 增加重试次数
+                const delay = 1500; // 增加延迟时间到1.5秒
 
-              while (attempts < maxAttempts) {
-                try {
-                  const res = await fetch(`/api/reports/${id}`);
-                  if (res.ok) {
-                    const reportData = await res.json();
-                    if (!reportData.error && reportData.content) {
-                      // Report is ready, redirect
-                      console.log('[前端] 报告已就绪，跳转');
-                      router.push(`/research/${id}/report`);
-                      return;
+                while (attempts < maxAttempts) {
+                  try {
+                    const res = await fetch(`/api/reports/${id}`);
+                    if (res.ok) {
+                      const reportData = await res.json();
+                      if (!reportData.error && reportData.content) {
+                        // Report is ready, redirect
+                        console.log('[前端] 报告已就绪，跳转');
+                        router.push(`/research/${id}/report`);
+                        return;
+                      }
                     }
+                  } catch (error) {
+                    console.error("Error checking report:", error);
                   }
-                } catch (error) {
-                  console.error("Error checking report:", error);
+
+                  attempts++;
+                  if (attempts < maxAttempts) {
+                    await new Promise((resolve) => setTimeout(resolve, delay));
+                  }
                 }
 
-                attempts++;
-                if (attempts < maxAttempts) {
-                  await new Promise((resolve) => setTimeout(resolve, delay));
-                }
-              }
+                // If report still not available after max attempts, redirect anyway
+                // The report page will handle retrying
+                console.log('[前端] 报告检查超时，仍然跳转');
+                router.push(`/research/${id}/report`);
+              };
 
-              // If report still not available after max attempts, redirect anyway
-              // The report page will handle retrying
-              console.log('[前端] 报告检查超时，仍然跳转');
-              router.push(`/research/${id}/report`);
-            };
-
-            checkReport();
+              checkReport();
+            }, 2000); // 等待2秒后再开始检查报告
           } else if (data.status === "failed") {
             console.log('[前端] 任务失败');
             eventSource?.close();

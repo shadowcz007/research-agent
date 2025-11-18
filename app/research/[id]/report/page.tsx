@@ -210,7 +210,7 @@ export default function ReportPage() {
           <div>
             <Card className="bg-white">
               <CardHeader>
-                <CardTitle className="text-3xl font-bold text-slate-900">
+                <CardTitle className="text-3xl font-bold text-slate-900 report-title leading-tight">
                   {reportData.question || "研究报告"}
                 </CardTitle>
                 <div className="flex items-center gap-4 text-sm text-slate-600 mt-4">

@@ -256,6 +256,14 @@
     @apply border-l-4 border-blue-500 pl-4 italic my-4;
 }
 
+/* 报告标题样式 */
+.report-title {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
 
 /* 引用链接样式 */
 
