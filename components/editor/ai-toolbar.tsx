@@ -18,9 +18,10 @@ interface AiToolbarProps {
   selectedText: string;
   onReplace: (newText: string) => void;
   reportId: string;
+  onRestoreSelection?: () => void;
 }
 
-export function AiToolbar({ selectedText, onReplace, reportId }: AiToolbarProps) {
+export function AiToolbar({ selectedText, onReplace, reportId, onRestoreSelection }: AiToolbarProps) {
   const [showCustom, setShowCustom] = useState(false);
   const [customInstruction, setCustomInstruction] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
@@ -88,6 +89,11 @@ export function AiToolbar({ selectedText, onReplace, reportId }: AiToolbarProps)
   }, [selectedText]);
 
   const handleAction = async (actionPrompt: string) => {
+    // 在开始处理前，先恢复选区显示
+    if (onRestoreSelection) {
+      onRestoreSelection();
+    }
+    
     setIsProcessing(true);
     try {
       const response = await fetch(`/api/reports/${reportId}/edit/rewrite`, {

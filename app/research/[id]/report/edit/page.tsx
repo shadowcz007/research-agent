@@ -380,6 +380,44 @@ export default function EditPage() {
     }
   };
 
+  const handleRestoreSelection = () => {
+    if (!selectionRange || !editorRef.current) return;
+
+    try {
+      const selection = window.getSelection();
+      if (selection && selectionRange) {
+        // 确保 range 在编辑器内
+        let range = selectionRange;
+        try {
+          // 检查 range 是否仍然有效
+          if (!editorRef.current.contains(range.commonAncestorContainer)) {
+            // 如果 range 无效，尝试从当前选择获取
+            if (selection.rangeCount > 0) {
+              range = selection.getRangeAt(0).cloneRange();
+            } else {
+              console.warn("Selection range is invalid");
+              return;
+            }
+          }
+        } catch (e) {
+          // 如果检查失败，尝试从当前选择获取
+          if (selection.rangeCount > 0) {
+            range = selection.getRangeAt(0).cloneRange();
+          } else {
+            console.warn("Failed to get valid range");
+            return;
+          }
+        }
+        
+        // 恢复选区显示
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+    } catch (error) {
+      console.error("Error restoring selection:", error);
+    }
+  };
+
   const handleReplaceSelection = (newText: string) => {
     if (!selectionRange || !editorRef.current) return;
 
@@ -417,15 +455,16 @@ export default function EditPage() {
         const textNode = document.createTextNode(newText);
         range.insertNode(textNode);
         
-        // 将光标移到插入文本的末尾
+        // 选中新插入的文本，而不是只移动光标
         selection.removeAllRanges();
         const newRange = document.createRange();
-        newRange.setStartAfter(textNode);
-        newRange.collapse(true);
+        newRange.setStartBefore(textNode);
+        newRange.setEndAfter(textNode);
         selection.addRange(newRange);
         
-        setSelectedText("");
-        setSelectionRange(null);
+        // 更新选中文本和选区范围
+        setSelectedText(newText);
+        setSelectionRange(newRange.cloneRange());
         
         // 更新内容状态
         if (editorRef.current) {
@@ -590,6 +629,7 @@ export default function EditPage() {
           selectedText={selectedText}
           onReplace={handleReplaceSelection}
           reportId={id}
+          onRestoreSelection={handleRestoreSelection}
         />
       )}
 
