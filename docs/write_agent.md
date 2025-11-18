@@ -114,7 +114,7 @@
 
 | 组件 | 说明 |
 |------|------|
-| **编辑器 (Editor)** | 支持完整 Markdown 渲染 + 实时预览，代码块语法高亮（Prism.js） |
+| **编辑器 (Editor)** | 支持完整 Markdown 渲染 + 实时预览（利用HTML的原生属性：contentEditable），代码块语法高亮（Prism.js） |
 | **AI 工具栏 (AiToolbar)** | 选中文本时淡入，5个预设按钮 + “自定义” → 点击后平滑转为输入框 |
 | **设置模态框 (SettingsModal)** | 标签页布局（AI 动作 / 文风），支持拖拽图标、搜索、排序 |
 
