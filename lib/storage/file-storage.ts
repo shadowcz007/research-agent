@@ -261,6 +261,36 @@ export class FileStorage {
       throw error;
     }
   }
+
+  async saveIntentData(id: string, intentData: any): Promise<void> {
+    try {
+      const reportDir = await this.createReportDir(id);
+      const intentPath = path.join(reportDir, "intent_data.json");
+      const jsonContent = JSON.stringify(intentData, null, 2);
+      await fs.writeFile(intentPath, jsonContent, "utf-8");
+      console.log(`[FileStorage] ✅ 已保存意图澄清数据到: ${intentPath}`);
+    } catch (error) {
+      console.error(`[FileStorage] ❌ 保存意图澄清数据失败:`, error instanceof Error ? error.message : error);
+      throw error;
+    }
+  }
+
+  async getIntentData(id: string): Promise<any | null> {
+    try {
+      const intentPath = path.join(this.reportsDir, id, "intent_data.json");
+      const content = await fs.readFile(intentPath, "utf-8");
+      const intentData = JSON.parse(content);
+      console.log(`[FileStorage] ✅ 成功读取意图澄清数据 (${intentPath})`);
+      return intentData;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        console.log(`[FileStorage] intent_data.json 不存在: ${id}`);
+        return null;
+      }
+      console.error(`[FileStorage] ❌ 读取意图澄清数据失败:`, error instanceof Error ? error.message : error);
+      return null;
+    }
+  }
 }
 
 export const fileStorage = new FileStorage();

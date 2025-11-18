@@ -159,6 +159,18 @@ export class AgentExecutorService {
       console.log(`[Executor] 发送进度: 初始化`);
       await this.logProgressEvent(reportId, { stage: "初始化", progress: 0, log: "准备研究环境" });
 
+      // 检查是否存在意图澄清数据
+      const intentData = await fileStorage.getIntentData(reportId);
+      if (intentData) {
+        console.log(`[Executor] 检测到意图澄清数据，将作为研究上下文使用`);
+        // 将研究卡片信息整合到问题中
+        if (intentData.researchCard) {
+          const researchContext = `研究目标：${intentData.researchCard.goal}\n\n关键问题：\n${intentData.researchCard.questions.map((q: string, i: number) => `${i + 1}. ${q}`).join('\n')}\n\n研究范围：${intentData.researchCard.scope}\n\n核心假设：${intentData.researchCard.hypothesis}\n\n---\n\n基于以上研究计划，请开始研究：${question}`;
+          question = researchContext;
+          console.log(`[Executor] 已整合研究卡片信息到研究问题中`);
+        }
+      }
+
       // Execute agent with deepagents
       console.log(`[Executor] 发送进度: 开始研究`);
       await this.logProgressEvent(reportId, { stage: "开始研究", progress: 0, log: "正在搜索相关资料..." });

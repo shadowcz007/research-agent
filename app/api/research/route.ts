@@ -6,7 +6,7 @@ import { activeTasks, type Task, calculateProgress } from "@/lib/storage/task-st
 
 export async function POST(request: NextRequest) {
   try {
-    const { question } = await request.json();
+    const { question, intentData } = await request.json();
 
     if (!question || typeof question !== "string") {
       return NextResponse.json(
@@ -25,6 +25,17 @@ export async function POST(request: NextRequest) {
 
     activeTasks.set(id, task);
     console.log(`[API] 创建任务 ${id}, 问题: ${question}, activeTasks 大小: ${activeTasks.size}`);
+
+    // 如果提供了意图澄清数据，保存到报告目录
+    if (intentData) {
+      try {
+        await fileStorage.saveIntentData(id, intentData);
+        console.log(`[API] 已保存意图澄清数据到任务 ${id}`);
+      } catch (error) {
+        console.error(`[API] 保存意图澄清数据失败:`, error);
+        // 不阻止任务创建，继续执行
+      }
+    }
 
     // Start agent execution in background
     agentExecutorService

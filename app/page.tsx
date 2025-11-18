@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
 import { Search, Mic, Clock, FileText } from "lucide-react";
 
 interface ReportMetadata {
@@ -22,6 +23,7 @@ export default function HomePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [reports, setReports] = useState<ReportMetadata[]>([]);
   const [reportsLoading, setReportsLoading] = useState(true);
+  const [aiEnhanced, setAiEnhanced] = useState(true); // AI增强开关，默认开启
   const router = useRouter();
 
   const exampleQuestions = [
@@ -34,6 +36,13 @@ export default function HomePage() {
     e.preventDefault();
     if (!question.trim() || isLoading) return;
 
+    // 如果AI增强开启，跳转到意图澄清流程页面
+    if (aiEnhanced) {
+      router.push(`/intent?problem=${encodeURIComponent(question)}`);
+      return;
+    }
+
+    // 否则保持原有流程
     setIsLoading(true);
     try {
       const response = await fetch("/api/research", {
@@ -167,16 +176,31 @@ export default function HomePage() {
               />
               <Mic className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5 cursor-pointer hover:text-blue-600" />
             </div>
-            <div className="flex items-center gap-4">
-              <Button
-                type="submit"
-                size="lg"
-                className="bg-blue-600 hover:bg-blue-700 text-white px-8"
-                disabled={isLoading}
-              >
-                {isLoading ? "提交中..." : "提交"}
-              </Button>
-              <Mic className="text-slate-400 w-6 h-6 cursor-pointer hover:text-blue-600" />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Switch
+                  id="ai-enhanced"
+                  checked={aiEnhanced}
+                  onCheckedChange={setAiEnhanced}
+                />
+                <label
+                  htmlFor="ai-enhanced"
+                  className="text-sm font-medium text-slate-700 cursor-pointer"
+                >
+                  AI增强
+                </label>
+              </div>
+              <div className="flex items-center gap-4">
+                <Button
+                  type="submit"
+                  size="lg"
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-8"
+                  disabled={isLoading}
+                >
+                  {isLoading ? "提交中..." : "提交"}
+                </Button>
+                <Mic className="text-slate-400 w-6 h-6 cursor-pointer hover:text-blue-600" />
+              </div>
             </div>
           </form>
 
