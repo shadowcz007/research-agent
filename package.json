@@ -1,6 +1,6 @@
 {
     "name": "research-agent",
-    "version": "1.0.0",
+    "version": "0.5.0",
     "private": true,
     "scripts": {
         "dev": "next dev --port 3001",
@@ -12,6 +12,8 @@
         "@langchain/core": "^1.0.5",
         "@langchain/openai": "^1.1.1",
         "@langchain/tavily": "^1.0.0",
+        "@radix-ui/react-dialog": "^1.1.15",
+        "@radix-ui/react-label": "^2.1.8",
         "@radix-ui/react-progress": "^1.0.3",
         "@radix-ui/react-scroll-area": "^1.0.5",
         "@radix-ui/react-separator": "^1.0.3",

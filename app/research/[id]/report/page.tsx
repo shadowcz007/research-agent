@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { ArrowLeft, Download, FileText } from "lucide-react";
+import { ArrowLeft, Download, FileText, Edit } from "lucide-react";
 import type { Components } from "react-markdown";
 
 interface ReportData {
@@ -138,6 +138,10 @@ export default function ReportPage() {
     router.push(`/research/${id}?mode=history`);
   };
 
+  const handleEdit = () => {
+    router.push(`/research/${id}/report/edit`);
+  };
+
   // 在内容渲染后，验证引用链接和参考文献的匹配
   useEffect(() => {
     if (reportData) {
@@ -233,6 +237,14 @@ export default function ReportPage() {
                   >
                     <FileText className="w-4 h-4" />
                     查看执行日志
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleEdit}
+                    className="gap-2"
+                  >
+                    <Edit className="w-4 h-4" />
+                    编辑
                   </Button>
                 </div>
               </CardHeader>
