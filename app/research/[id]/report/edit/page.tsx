@@ -152,9 +152,19 @@ export default function EditPage() {
   useEffect(() => {
     const handleSelection = () => {
       const selection = window.getSelection();
+      const activeElement = document.activeElement;
+      const toolbarElement = document.querySelector("[data-ai-toolbar='true']");
+      const isInteractingWithToolbar =
+        activeElement instanceof HTMLElement &&
+        toolbarElement instanceof HTMLElement &&
+        toolbarElement.contains(activeElement);
+
       if (selection && selection.toString().trim().length > 0) {
         setSelectedText(selection.toString().trim());
         setSelectionRange(selection.getRangeAt(0).cloneRange());
+      } else if (isInteractingWithToolbar) {
+        // 与工具栏交互时不要立即清除选区，避免自定义输入框被卸载
+        return;
       } else {
         setSelectedText("");
         setSelectionRange(null);

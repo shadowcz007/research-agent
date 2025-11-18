@@ -129,6 +129,7 @@ export function AiToolbar({ selectedText, onReplace, reportId }: AiToolbarProps)
   return (
     <div
       ref={toolbarRef}
+      data-ai-toolbar="true"
       className={cn(
         "fixed z-50 flex items-center gap-2 bg-slate-900 text-white px-4 py-2 rounded-lg shadow-lg",
         "animate-in fade-in-0 zoom-in-95 duration-150",
@@ -137,6 +138,11 @@ export function AiToolbar({ selectedText, onReplace, reportId }: AiToolbarProps)
       style={{
         top: `${position.top}px`,
         left: `${position.left}px`,
+      }}
+      onMouseDown={(e) => {
+        // 防止点击工具栏时清除文本选择
+        e.preventDefault();
+        e.stopPropagation();
       }}
     >
       {!showCustom ? (
