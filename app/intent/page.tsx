@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,7 +40,7 @@ const STEPS = [
   "研究卡片",
 ];
 
-export default function IntentPage() {
+function IntentPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [currentStep, setCurrentStep] = useState(1);
@@ -702,6 +702,23 @@ export default function IntentPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function IntentPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
+        <Card className="w-full max-w-4xl bg-white/95 backdrop-blur-sm shadow-2xl">
+          <CardContent className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+            <span className="ml-3 text-slate-600">加载中...</span>
+          </CardContent>
+        </Card>
+      </div>
+    }>
+      <IntentPageContent />
+    </Suspense>
   );
 }
 
