@@ -42,6 +42,7 @@ export default function EditPage() {
   const [styles, setStyles] = useState<Style[]>([]);
   const [originalContent, setOriginalContent] = useState<string>(""); // 保存当前版本的原始内容
   const [versionListKey, setVersionListKey] = useState(0); // 用于触发侧边栏刷新
+  const [hasChanges, setHasChanges] = useState(false); // 跟踪内容是否有修改
 
   // 获取版本列表
   useEffect(() => {
@@ -110,6 +111,7 @@ export default function EditPage() {
               setContent(originalData.content);
               setOriginalContent(originalData.content); // 保存原始内容
               setCurrentVersion("original");
+              setHasChanges(false); // 加载内容时重置修改状态
             }
           } else {
             console.error(data.error);
@@ -119,6 +121,7 @@ export default function EditPage() {
         } else {
           setContent(data.content);
           setOriginalContent(data.content); // 保存原始内容用于比较
+          setHasChanges(false); // 加载内容时重置修改状态
         }
         
         // 获取报告基本信息（question）
@@ -147,6 +150,20 @@ export default function EditPage() {
       }
     }
   }, [content, loading]);
+
+  // 监听内容变化，检查是否有修改
+  useEffect(() => {
+    const checkChanges = () => {
+      if (!editorRef.current || !originalContent) return;
+      const currentContent = editorRef.current.textContent || "";
+      const hasModifications = currentContent.trim() !== originalContent.trim();
+      setHasChanges(hasModifications);
+    };
+
+    // 使用定时器来防抖，避免频繁检查
+    const timer = setTimeout(checkChanges, 300);
+    return () => clearTimeout(timer);
+  }, [content, originalContent]);
 
   // 监听文本选择
   useEffect(() => {
@@ -237,6 +254,9 @@ export default function EditPage() {
       alert(isOriginal 
         ? "保存成功！已创建新版本（原报告保持不变）。" 
         : "保存成功！已创建新版本。");
+      
+      // 保存成功后重置修改状态
+      setHasChanges(false);
     } catch (error) {
       console.error("Error saving report:", error);
       alert("保存失败，请重试");
@@ -329,11 +349,16 @@ export default function EditPage() {
           if (newVersionId) {
             setCurrentVersion(newVersionId);
             setOriginalContent(newContent); // 更新原始内容
+            setHasChanges(false); // 保存后重置修改状态
           }
         }
       } else if (newContent && newContent.trim() === originalContent.trim()) {
         // 如果改写后内容没有变化，不保存
         alert("改写后内容未发生变化，未创建新版本。");
+        setHasChanges(false); // 内容未变化，重置修改状态
+      } else if (newContent) {
+        // 如果改写后内容有变化但未保存，标记为已修改
+        setHasChanges(true);
       }
     } catch (error) {
       console.error("Error rewriting report:", error);
@@ -359,6 +384,7 @@ export default function EditPage() {
       setContent(data.content);
       setOriginalContent(data.content); // 更新原始内容
       setCurrentVersion(versionId);
+      setHasChanges(false); // 切换版本时重置修改状态
       
       // 更新编辑器内容
       if (editorRef.current) {
@@ -468,7 +494,11 @@ export default function EditPage() {
         
         // 更新内容状态
         if (editorRef.current) {
-          setContent(editorRef.current.textContent || "");
+          const newContent = editorRef.current.textContent || "";
+          setContent(newContent);
+          // 检查是否有修改
+          const hasModifications = newContent.trim() !== originalContent.trim();
+          setHasChanges(hasModifications);
         }
       }
     } catch (error) {
@@ -551,7 +581,11 @@ export default function EditPage() {
               <Button
                 onClick={handleSave}
                 disabled={isSaving}
-                className="gap-2"
+                className={cn(
+                  "gap-2",
+                  hasChanges && "bg-blue-600 hover:bg-blue-700 text-white border-blue-600"
+                )}
+                variant={hasChanges ? "default" : "outline"}
                 title={isOriginal ? "保存将创建新版本，原报告保持不变" : "保存将创建新版本"}
               >
                 <Save className="w-4 h-4" />
@@ -612,7 +646,11 @@ export default function EditPage() {
                     suppressContentEditableWarning
                     onInput={(e) => {
                       if (editorRef.current) {
-                        setContent(editorRef.current.textContent || "");
+                        const newContent = editorRef.current.textContent || "";
+                        setContent(newContent);
+                        // 实时检查是否有修改
+                        const hasModifications = newContent.trim() !== originalContent.trim();
+                        setHasChanges(hasModifications);
                       }
                     }}
                   />
