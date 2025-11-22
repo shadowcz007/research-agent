@@ -181,7 +181,7 @@ export default function ResearchProgressPage() {
             setQuestion(data.question);
           }
 
-          if (data.status === "completed") {
+          if (data.status === "completed" || data.stage === "完成") {
             console.log('[前端] 任务完成，准备跳转到报告页面');
             
             // 延迟关闭连接，给后端时间完成所有操作（包括文件写入）
@@ -239,6 +239,23 @@ export default function ResearchProgressPage() {
         console.error('[前端] SSE 连接错误:', error);
         console.error('[前端] EventSource readyState:', eventSource?.readyState);
         eventSource?.close();
+
+        // 增强：连接断开时，主动检查一次任务状态，防止因最后一条消息丢失导致无法跳转
+        const checkStatusOnClose = async () => {
+          try {
+            const res = await fetch(`/api/reports/${id}/logs`);
+            if (res.ok) {
+              const data = await res.json();
+              if (data.status === "completed" || data.stage === "完成") {
+                console.log('[前端] 异常断开检测：任务实际已完成，执行跳转');
+                router.push(`/research/${id}/report`);
+              }
+            }
+          } catch (e) {
+            console.error('[前端] 断开后状态检查失败:', e);
+          }
+        };
+        checkStatusOnClose();
       };
     });
 

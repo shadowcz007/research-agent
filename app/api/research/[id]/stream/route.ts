@@ -140,7 +140,7 @@ export async function GET(
           }
 
           const updateData = {
-            status: currentTask.status,
+            status: (currentTask.status === "completed" || currentTask.stage === "完成") ? "completed" : currentTask.status,
             progress: currentTask.progress,
             stage: currentTask.stage,
             logs: currentTask.logs,

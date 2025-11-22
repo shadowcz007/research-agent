@@ -632,6 +632,13 @@ export class AgentExecutorService {
       await this.logProgressEvent(reportId, { stage: "完成", progress: 0, log: "研究任务已完成" });
     } catch (error) {
       console.error(`[Executor] 任务执行失败:`, error);
+      
+      // 关键修复：更新内存中的任务状态为 failed，否则 SSE 会一直发送 processing
+      const task = activeTasks.get(reportId);
+      if (task) {
+        task.status = "failed";
+      }
+
       await this.logProgressEvent(reportId, {
         stage: "错误",
         progress: 0,
