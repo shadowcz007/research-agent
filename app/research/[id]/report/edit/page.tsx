@@ -4,10 +4,11 @@ import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Settings, Save, Sparkles } from "lucide-react";
+import { ArrowLeft, Settings, Save, Sparkles, Shield } from "lucide-react";
 import { AiToolbar } from "@/components/editor/ai-toolbar";
 import { SettingsModal } from "@/components/editor/settings-modal";
 import { VersionSidebar, ReportVersion } from "@/components/editor/version-sidebar";
+import { DetectionSidebar, DetectionResult } from "@/components/editor/detection-sidebar";
 import { cn } from "@/lib/utils";
 
 interface ReportData {
@@ -43,6 +44,9 @@ export default function EditPage() {
   const [originalContent, setOriginalContent] = useState<string>(""); // 保存当前版本的原始内容
   const [versionListKey, setVersionListKey] = useState(0); // 用于触发侧边栏刷新
   const [hasChanges, setHasChanges] = useState(false); // 跟踪内容是否有修改
+  const [detectionResult, setDetectionResult] = useState<DetectionResult | null>(null); // 检测结果
+  const [isDetecting, setIsDetecting] = useState(false); // 是否正在检测
+  const [showDetectionSidebar, setShowDetectionSidebar] = useState(false); // 是否显示检测侧边栏
 
   // 获取版本列表
   useEffect(() => {
@@ -506,6 +510,45 @@ export default function EditPage() {
     }
   };
 
+  const handleDetectViolations = async () => {
+    if (!editorRef.current) return;
+
+    const currentContent = editorRef.current.textContent || content;
+    if (!currentContent.trim()) {
+      alert("内容为空，无法检测");
+      return;
+    }
+
+    setIsDetecting(true);
+    setShowDetectionSidebar(true);
+
+    try {
+      const response = await fetch(`/api/reports/${id}/edit/detect-violations`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          content: currentContent,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "检测失败");
+      }
+
+      const result: DetectionResult = await response.json();
+      setDetectionResult(result);
+    } catch (error) {
+      console.error("Error detecting violations:", error);
+      alert("检测失败，请重试");
+      setDetectionResult(null);
+    } finally {
+      setIsDetecting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -570,6 +613,16 @@ export default function EditPage() {
               )}
             </div>
             <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                onClick={handleDetectViolations}
+                disabled={isDetecting}
+                className="gap-2"
+                title="检测违禁词"
+              >
+                <Shield className="w-4 h-4" />
+                {isDetecting ? "检测中..." : "检测违禁词"}
+              </Button>
               <Button
                 variant="outline"
                 onClick={() => setShowSettings(true)}
@@ -668,6 +721,15 @@ export default function EditPage() {
           onReplace={handleReplaceSelection}
           reportId={id}
           onRestoreSelection={handleRestoreSelection}
+        />
+      )}
+
+      {/* Detection Sidebar */}
+      {showDetectionSidebar && (
+        <DetectionSidebar
+          result={detectionResult}
+          loading={isDetecting}
+          onClose={() => setShowDetectionSidebar(false)}
         />
       )}
 
